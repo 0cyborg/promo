@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BugTracker — Offline-First Kanban Bug Tracking</title>
+  <meta name="description" content="A fast, offline-first Kanban bug tracker with WYSIWYG editing, drag-and-drop boards, file previews, and an embedded ETAPI server for AI agents. No Electron." />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --radius: 10px;
+      --transition: .2s ease;
+    }
+
+    [data-theme="dark"] {
+      --bg:      #1a1e13;
+      --bg2:     #252a1a;
+      --bg3:     #333822;
+      --border:  #3d3b28;
+      --fg:      #f0edd8;
+      --muted:   #b5b08a;
+      --accent:  #25d366;
+      --accent2: #4ae07f;
+      --green:   #86efac;
+      --purple:  #c4b5fd;
+      --orange:  #fcd34d;
+      --shadow:  0 8px 32px rgba(0,0,0,.6);
+    }
+
+    [data-theme="light"] {
+      --bg:      #fefcf3;
+      --bg2:     #f7f3e3;
+      --bg3:     #f0ebd6;
+      --border:  #d4c9a8;
+      --fg:      #2d3319;
+      --muted:   #6b7045;
+      --accent:  #25d366;
+      --accent2: #1da851;
+      --green:   #15803d;
+      --purple:  #7c3aed;
+      --orange:  #b45309;
+      --shadow:  0 8px 32px rgba(0,0,0,.08);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.6;
+      transition: background var(--transition), color var(--transition);
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { color: var(--accent2); text-decoration: underline; }
+
+    /* ── Nav ───────────────────────────────────────────── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 2rem; height: 56px;
+      background: color-mix(in srgb, var(--bg) 85%, transparent);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo {
+      font-size: 1.15rem; font-weight: 700; letter-spacing: -.02em;
+      color: var(--fg);
+    }
+    .nav-logo span { color: var(--accent); }
+    .nav-links { display: flex; gap: 1.5rem; align-items: center; font-size: .9rem; }
+    .nav-links a { color: var(--muted); transition: color .15s; }
+    .nav-links a:hover { color: var(--fg); text-decoration: none; }
+    .nav-cta {
+      display: inline-flex; align-items: center; gap: .4rem;
+      padding: .35rem .9rem; border-radius: 6px;
+      background: var(--accent); color: var(--bg);
+      font-size: .85rem; font-weight: 600;
+      transition: background .15s;
+    }
+    .nav-cta:hover { background: var(--accent2); text-decoration: none; color: var(--bg); }
+
+    .theme-toggle {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 6px; padding: .35rem .6rem;
+      cursor: pointer; font-size: 1rem; line-height: 1;
+      transition: border-color var(--transition);
+    }
+    .theme-toggle:hover { border-color: var(--accent); }
+
+    /* ── Hero ──────────────────────────────────────────── */
+    .hero {
+      text-align: center;
+      padding: 6rem 1.5rem 4rem;
+      max-width: 900px; margin: 0 auto;
+    }
+    .hero-badge {
+      display: inline-block;
+      padding: .25rem .75rem; border-radius: 20px;
+      border: 1px solid var(--border);
+      font-size: .8rem; color: var(--muted); margin-bottom: 1.5rem;
+      background: var(--bg2);
+    }
+    .hero-badge strong { color: var(--green); }
+    h1 {
+      font-size: clamp(2.4rem, 6vw, 4rem);
+      font-weight: 800; letter-spacing: -.04em;
+      line-height: 1.1; margin-bottom: 1.25rem;
+    }
+    h1 .accent { color: var(--accent); }
+    .hero-sub {
+      font-size: clamp(1rem, 2.5vw, 1.2rem);
+      color: var(--muted); max-width: 620px; margin: 0 auto 2.5rem;
+    }
+    .hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: .5rem;
+      padding: .65rem 1.4rem; border-radius: 8px;
+      background: var(--accent); color: var(--bg);
+      font-size: .95rem; font-weight: 600;
+      transition: background .15s, transform .1s;
+    }
+    .btn-primary:hover { background: var(--accent2); text-decoration: none; color: var(--bg); transform: translateY(-1px); }
+    .btn-primary.disabled { opacity: .4; cursor: not-allowed; pointer-events: none; }
+
+    .hero-stats {
+      display: flex; gap: 2.5rem; justify-content: center; flex-wrap: wrap;
+      margin-top: 3.5rem; padding-top: 2rem;
+      border-top: 1px solid var(--border);
+    }
+    .stat { text-align: center; }
+    .stat-val { font-size: 1.6rem; font-weight: 700; color: var(--fg); }
+    .stat-label { font-size: .8rem; color: var(--muted); margin-top: .15rem; }
+
+    /* ── Screenshot ────────────────────────────────────── */
+    .screenshot-wrap { max-width: 1060px; margin: 0 auto; padding: 0 1.5rem 5rem; }
+    .screenshot {
+      position: relative; border-radius: 12px;
+      border: 1px solid var(--border); overflow: hidden;
+      background: var(--bg2); box-shadow: var(--shadow);
+    }
+    .screenshot img { width: 100%; display: block; border-radius: 0 0 8px 8px; }
+    .screenshot-bar {
+      display: flex; align-items: center; gap: .5rem;
+      padding: .6rem 1rem;
+      background: var(--bg3); border-bottom: 1px solid var(--border);
+    }
+    .screenshot-placeholder {
+      aspect-ratio: 16 / 9;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: .75rem;
+      background: var(--bg3); color: var(--muted); font-size: .9rem;
+    }
+    .screenshot-placeholder span { opacity: .5; font-size: .8rem; font-style: italic; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .dot-red { background: #ff5f57; }
+    .dot-yel { background: #febc2e; }
+    .dot-grn { background: #28c840; }
+
+    /* ── Section ───────────────────────────────────────── */
+    section { padding: 5rem 1.5rem; }
+    .section-inner { max-width: 1060px; margin: 0 auto; }
+    .section-label {
+      font-size: .75rem; font-weight: 600; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--accent); margin-bottom: .6rem;
+    }
+    h2 {
+      font-size: clamp(1.6rem, 4vw, 2.2rem);
+      font-weight: 700; letter-spacing: -.03em;
+      margin-bottom: .75rem;
+    }
+    .section-sub {
+      font-size: 1.05rem; color: var(--muted);
+      max-width: 560px; margin-bottom: 3rem;
+    }
+
+    /* ── Feature grid ─────────────────────────────────── */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.25rem;
+    }
+    .feature-card {
+      padding: 1.5rem; border-radius: var(--radius);
+      border: 1px solid var(--border); background: var(--bg2);
+      transition: border-color .2s, transform .15s;
+    }
+    .feature-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .feature-icon {
+      width: 40px; height: 40px; border-radius: 8px; margin-bottom: 1rem;
+      display: flex; align-items: center; justify-content: center; font-size: 1.3rem;
+    }
+    .feature-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: .4rem; }
+    .feature-card p { font-size: .9rem; color: var(--muted); line-height: 1.5; }
+
+    /* ── Split layout ─────────────────────────────────── */
+    .split {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 3.5rem; align-items: center;
+    }
+    .split.reverse { direction: rtl; }
+    .split.reverse > * { direction: ltr; }
+    @media (max-width: 720px) {
+      .split, .split.reverse { grid-template-columns: 1fr; direction: ltr; }
+    }
+    .split-text h2 { margin-bottom: .6rem; }
+    .split-text p { color: var(--muted); margin-bottom: 1.25rem; }
+    .split-text ul { list-style: none; display: flex; flex-direction: column; gap: .5rem; }
+    .split-text ul li {
+      display: flex; align-items: flex-start; gap: .5rem;
+      font-size: .95rem; color: var(--muted);
+    }
+    .split-text ul li::before { content: "✦"; color: var(--accent); font-size: .7rem; margin-top: .35rem; flex-shrink: 0; }
+    .split-screenshot {
+      border-radius: var(--radius); border: 1px solid var(--border);
+      background: var(--bg2); overflow: hidden; box-shadow: var(--shadow);
+    }
+    .split-screenshot img { width: 100%; display: block; }
+
+    /* ── ETAPI grid ───────────────────────────────────── */
+    .api-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 1rem; margin-top: 2rem;
+    }
+    .api-card {
+      padding: 1.25rem; border-radius: var(--radius);
+      border: 1px solid var(--border); background: var(--bg2);
+    }
+    .api-card .method {
+      font-size: .7rem; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase; margin-bottom: .5rem; color: var(--accent);
+    }
+    .api-card h4 { font-size: .95rem; font-weight: 600; margin-bottom: .3rem; }
+    .api-card p { font-size: .85rem; color: var(--muted); }
+
+    /* ── Code demo ────────────────────────────────────── */
+    .code-demo {
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.25rem 1.5rem;
+      font-family: "Fira Code", "Cascadia Code", monospace;
+      font-size: .85rem; line-height: 1.8;
+    }
+    .code-demo .cmd-line { color: var(--muted); }
+    .code-demo .cmd-key { color: var(--purple); }
+    .code-demo .cmd-val { color: var(--green); }
+    .code-demo .cmd-url { color: var(--orange); }
+
+    /* ── Tech pills ───────────────────────────────────── */
+    .tech-grid { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1.5rem; }
+    .tech-pill {
+      display: flex; align-items: center; gap: .5rem;
+      padding: .5rem 1rem; border-radius: 20px;
+      border: 1px solid var(--border); background: var(--bg2);
+      font-size: .88rem; font-weight: 500;
+    }
+
+    /* ── Install / CTA ────────────────────────────────── */
+    .cta-box {
+      text-align: center; border: 1px solid var(--border);
+      border-radius: 16px; padding: 4rem 2rem; background: var(--bg2);
+    }
+    .cta-box h2 { font-size: clamp(1.5rem, 4vw, 2rem); margin-bottom: .75rem; }
+    .cta-box p { color: var(--muted); max-width: 480px; margin-inline: auto; margin-bottom: 2rem; }
+    .install-platforms {
+      display: flex; gap: .5rem; justify-content: center; flex-wrap: wrap;
+      margin-bottom: 1.5rem; font-size: .85rem; color: var(--muted);
+    }
+    .install-platforms span {
+      padding: .3rem .75rem; border-radius: 20px;
+      border: 1px solid var(--border); background: var(--bg3);
+    }
+    .curl-command {
+      display: flex; align-items: center; gap: .75rem;
+      max-width: 640px; margin: 0 auto;
+      background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+      padding: .9rem 1.25rem;
+      font-family: "Fira Code", "Cascadia Code", monospace;
+      font-size: .88rem; color: var(--green);
+    }
+    .curl-command code { flex: 1; text-align: left; overflow-x: auto; white-space: nowrap; }
+    .copy-btn {
+      flex-shrink: 0; display: inline-flex; align-items: center; gap: .4rem;
+      padding: .4rem .8rem; border-radius: 6px;
+      border: 1px solid var(--border); background: var(--bg2); color: var(--fg);
+      font-size: .8rem; font-weight: 600; cursor: pointer;
+      transition: border-color .15s;
+    }
+    .copy-btn:hover { border-color: var(--accent); }
+    .copy-btn.copied { color: var(--accent); border-color: var(--accent); }
+    .install-note { font-size: .8rem; color: var(--muted); margin-top: 1rem; }
+
+    /* ── Footer ────────────────────────────────────────── */
+    footer {
+      text-align: center; padding: 2.5rem 1.5rem;
+      border-top: 1px solid var(--border);
+      font-size: .85rem; color: var(--muted);
+    }
+    footer a { color: var(--muted); }
+    footer a:hover { color: var(--fg); }
+
+    .divider { border: none; border-top: 1px solid var(--border); margin: 0; }
+
+    @media (max-width: 600px) {
+      nav { padding: 0 1rem; }
+      .nav-links a:not(.theme-toggle):not(.nav-cta) { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <span class="nav-logo">Bug<span>Tracker</span></span>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#board">Board</a>
+    <a href="#etapi">ETAPI</a>
+    <a href="#install">Install</a>
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">🌓</button>
+    <a class="nav-cta" href="#install">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Download
+    </a>
+  </div>
+</nav>
+
+<!-- ── Hero ────────────────────────────────────────────────── -->
+<div class="hero">
+  <div class="hero-badge">
+    <strong>NEW</strong> &nbsp;Built with Tauri 2 · Svelte 5 · SQLite · actix-web
+  </div>
+  <h1>Bug tracking that<br/><span class="accent">works offline</span></h1>
+  <p class="hero-sub">
+    A fast, offline-first Kanban bug tracker with WYSIWYG editing, drag-and-drop boards,
+    file previews, and an embedded ETAPI server for AI agents — no server, no account.
+  </p>
+  <div class="hero-actions">
+    <a class="btn-primary" href="#install">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Download Free
+    </a>
+  </div>
+
+  <div class="hero-stats">
+    <div class="stat"><div class="stat-val">~6 MB</div><div class="stat-label">Binary size</div></div>
+    <div class="stat"><div class="stat-val">~35 MB</div><div class="stat-label">RAM at idle</div></div>
+    <div class="stat"><div class="stat-val">3</div><div class="stat-label">Platforms</div></div>
+    <div class="stat"><div class="stat-val">SQLite</div><div class="stat-label">Storage</div></div>
+    <div class="stat"><div class="stat-val">ETAPI</div><div class="stat-label">Agent-ready</div></div>
+  </div>
+</div>
+
+<!-- ── Hero screenshot ──────────────────────────────────────── -->
+<div class="screenshot-wrap">
+  <div class="screenshot">
+    <div class="screenshot-bar">
+      <div class="dot dot-red"></div>
+      <div class="dot dot-yel"></div>
+      <div class="dot dot-grn"></div>
+    </div>
+    <!-- Replace with actual screenshot -->
+    <div class="screenshot-placeholder">
+      <span>hero.png — Kanban board overview</span>
+    </div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- ── Core features ────────────────────────────────────────── -->
+<section id="features">
+  <div class="section-inner">
+    <p class="section-label">Features</p>
+    <h2>Everything a bug tracker needs,<br/>nothing it doesn't</h2>
+    <p class="section-sub">BugTracker is built around one idea: track bugs fast, locally, and let AI agents help when you want them to.</p>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(37,211,102,.12)">⊞</div>
+        <h3>Kanban Board</h3>
+        <p>Drag-and-drop columns with customisable statuses. Reorder cards, move between columns, and see your workflow at a glance.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(196,181,253,.12)">✎</div>
+        <h3>WYSIWYG Editor</h3>
+        <p>Rich TipTap editor for issue descriptions. Tables, task lists, code blocks, images — all inline. Markdown import/export.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(252,211,77,.12)">📁</div>
+        <h3>File Previews</h3>
+        <p>Attach images, PDFs, CSVs, and code files. Preview them inline or full-screen without leaving the app.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(37,211,102,.12)">🔌</div>
+        <h3>ETAPI Server</h3>
+        <p>Embedded HTTP API for AI agents. Create, read, update, and search issues programmatically. Bearer token auth.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(196,181,253,.12)">💾</div>
+        <h3>Offline-First</h3>
+        <p>All data lives in a local SQLite database. No server, no account, no internet required. Your data is yours.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(252,211,77,.12)">🔍</div>
+        <h3>Search &amp; Filter</h3>
+        <p>Full-text search across titles and descriptions. Filter by label, priority, assignee, and status.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(37,211,102,.12)">◑</div>
+        <h3>Themes</h3>
+        <p>Light, Dark, Light Contrast, Dark Contrast, and Catppuccin presets. Custom accent colours and font sizing.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(196,181,253,.12)">⌨</div>
+        <h3>Keyboard-First</h3>
+        <p>Navigate, create, edit, and transition issues without touching the mouse. Vim-style shortcuts optional.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- ── Board section ────────────────────────────────────────── -->
+<section id="board">
+  <div class="section-inner">
+    <div class="split" style="margin-bottom:4rem">
+      <div class="split-text">
+        <p class="section-label">Board</p>
+        <h2>Drag, drop, done</h2>
+        <p>A full Kanban board with customisable columns. Drag cards between statuses, reorder within columns, and see priorities at a glance.</p>
+        <ul>
+          <li>Custom columns per workspace (Backlog → Done)</li>
+          <li>Priority indicators with colour coding</li>
+          <li>Card preview with title, labels, and assignee</li>
+          <li>Multiple workspaces with independent boards</li>
+        </ul>
+      </div>
+      <div class="split-screenshot">
+        <div class="screenshot-bar">
+          <div class="dot dot-red"></div><div class="dot dot-yel"></div><div class="dot dot-grn"></div>
+        </div>
+        <!-- Replace with actual GIF -->
+        <div class="screenshot-placeholder">
+          <span>board.gif — Drag-and-drop Kanban</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="split reverse">
+      <div class="split-text">
+        <h2>Rich issue detail</h2>
+        <p>Click any card to open the detail view. Full WYSIWYG editor, attachments, labels, priority, and activity log.</p>
+        <ul>
+          <li>TipTap rich text with inline images</li>
+          <li>File attachments with preview tabs</li>
+          <li>Label and priority selectors</li>
+          <li>Activity timeline with timestamps</li>
+        </ul>
+      </div>
+      <div class="split-screenshot">
+        <div class="screenshot-bar">
+          <div class="dot dot-red"></div><div class="dot dot-yel"></div><div class="dot dot-grn"></div>
+        </div>
+        <!-- Replace with actual GIF -->
+        <div class="screenshot-placeholder">
+          <span>detail.gif — Issue detail view</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- ── ETAPI section ────────────────────────────────────────── -->
+<section id="etapi">
+  <div class="section-inner">
+    <div class="split">
+      <div class="split-text">
+        <p class="section-label">ETAPI</p>
+        <h2>Built for AI agents</h2>
+        <p>An embedded HTTP API server runs inside the app. AI agents, scripts, and CI pipelines can create, query, and triage issues programmatically.</p>
+        <ul>
+          <li>Bearer token authentication</li>
+          <li>Full CRUD for issues, labels, and columns</li>
+          <li>Full-text search endpoint</li>
+          <li>Toggle on/off at runtime — zero config</li>
+        </ul>
+      </div>
+      <div>
+        <div class="code-demo">
+          <div class="cmd-line"># Create an issue via ETAPI</div>
+          <div><span class="cmd-url">POST /etapi/issues</span></div>
+          <div><span class="cmd-key">{</span></div>
+          <div>&nbsp;&nbsp;<span class="cmd-key">"title"</span>: <span class="cmd-val">"Login button unresponsive on Safari"</span>,</div>
+          <div>&nbsp;&nbsp;<span class="cmd-key">"status"</span>: <span class="cmd-val">"Backlog"</span>,</div>
+          <div>&nbsp;&nbsp;<span class="cmd-key">"priority"</span>: <span class="cmd-val">3</span>,</div>
+          <div>&nbsp;&nbsp;<span class="cmd-key">"labels"</span>: [<span class="cmd-val">"bug"</span>, <span class="cmd-val">"frontend"</span>]</div>
+          <div><span class="cmd-key">}</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="api-grid">
+      <div class="api-card">
+        <div class="method">GET</div>
+        <h4>/etapi/issues</h4>
+        <p>List and filter issues by status, label, priority, or assignee.</p>
+      </div>
+      <div class="api-card">
+        <div class="method">POST</div>
+        <h4>/etapi/issues</h4>
+        <p>Create a new issue with title, body, status, priority, and labels.</p>
+      </div>
+      <div class="api-card">
+        <div class="method">PATCH</div>
+        <h4>/etapi/issues/:id/status</h4>
+        <p>Transition an issue to a new column/status.</p>
+      </div>
+      <div class="api-card">
+        <div class="method">GET</div>
+        <h4>/etapi/search</h4>
+        <p>Full-text search across issue titles and bodies.</p>
+      </div>
+    </div>
+
+    <div style="margin-top:3rem">
+      <div class="split-screenshot" style="max-width:100%">
+        <div class="screenshot-bar">
+          <div class="dot dot-red"></div><div class="dot dot-yel"></div><div class="dot dot-grn"></div>
+        </div>
+        <!-- Replace with actual GIF -->
+        <div class="screenshot-placeholder">
+          <span>etapi.gif — AI agent interacting with BugTracker</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- ── Tech stack ────────────────────────────────────────────── -->
+<section>
+  <div class="section-inner" style="text-align:center;max-width:680px">
+    <p class="section-label">Technology</p>
+    <h2>Built on proven open-source foundations</h2>
+    <p style="color:var(--muted);margin-bottom:0">No Electron. No bundled Chromium. BugTracker uses the platform WebView — tiny on disk, light on RAM.</p>
+    <div class="tech-grid" style="justify-content:center;margin-top:1.75rem">
+      <div class="tech-pill">🦀 Tauri 2</div>
+      <div class="tech-pill">⚡ Svelte 5</div>
+      <div class="tech-pill">🗄 SQLite</div>
+      <div class="tech-pill">✏️ TipTap</div>
+      <div class="tech-pill">🌐 actix-web</div>
+      <div class="tech-pill">🔐 Ed25519</div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- ── Install / CTA ─────────────────────────────────────────── -->
+<section id="install">
+  <div class="section-inner">
+    <div class="cta-box">
+      <h2>Install BugTracker</h2>
+      <p>One command sets up the binary, config directory, and license — no manual download or unzip required.</p>
+
+      <div class="install-platforms">
+        <span>🐧 Linux</span>
+        <span>🍎 macOS</span>
+        <span>🪟 WSL</span>
+      </div>
+
+      <div class="curl-command">
+        <code id="install-cmd">curl -fsSL https://0cyborg.github.io/promo/bugtracker/install.sh | bash</code>
+        <button class="copy-btn" onclick="copyInstallCmd(this)">Copy</button>
+      </div>
+      <p class="install-note">Installs to <code>~/.local/bin</code>, writes your license to <code>~/.config/bugtracker</code>. Always inspect scripts you pipe into a shell — <a href="install.sh" target="_blank" rel="noopener">view the source</a> first.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p>
+    <code>curl -fsSL https://0cyborg.github.io/promo/bugtracker/install.sh | bash</code>
+  </p>
+  <p style="margin-top:.5rem">Built with Tauri 2, Svelte 5, SQLite, and actix-web &nbsp;·&nbsp; <a href="../">DevGear</a></p>
+</footer>
+
+<script>
+  function toggleTheme() {
+    const html = document.documentElement;
+    const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('devgear-theme', next);
+  }
+  (function() {
+    const saved = localStorage.getItem('devgear-theme');
+    if (saved) document.documentElement.setAttribute('data-theme', saved);
+  })();
+
+  function copyInstallCmd(btn) {
+    const text = document.getElementById('install-cmd').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      const original = btn.textContent;
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = original;
+        btn.classList.remove('copied');
+      }, 1500);
+    });
+  }
+</script>
+
+</body>
+</html>
