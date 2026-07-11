@@ -1,3 +1,0 @@
-docs/keedown/releases/ filter=lfs diff=lfs merge=lfs -text
-docs/bugtracker/releases/ filter=lfs diff=lfs merge=lfs -text
-docs/*/releases/** filter=lfs diff=lfs merge=lfs -text
