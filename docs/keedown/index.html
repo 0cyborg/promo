@@ -4,7 +4,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Keedown — The Editor That Thinks in Markdown</title>
-  <meta name="description" content="A modern, fast, cross-platform markdown editor with a native terminal, inline shell execution, SSH binding, and rich block elements. ~5 MB. No Electron." />
+  <meta name="description" content="A fast Markdown editor with runnable code blocks, a built-in terminal, SSH binding and a review step before anything runs. Linux and macOS. No Electron." />
+  <script>
+    // Before first paint: the saved choice, else the system's colour scheme
+    (function () {
+      var saved = null;
+      try { saved = localStorage.getItem('devgear-theme'); } catch (e) {}
+      var t = saved || (window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -13,6 +22,8 @@
       --transition: .2s ease;
     }
 
+    /* The page's palettes are the app's Dark Contrast and Light Contrast themes; the
+       screenshots switch with them (.m-dark / .m-light). */
     [data-theme="dark"] {
       --bg:      #1a1e13;
       --bg2:     #252a1a;
@@ -35,13 +46,14 @@
       --border:  #d4c9a8;
       --fg:      #2d3319;
       --muted:   #6b7045;
-      --accent:  #25d366;
-      --accent2: #1da851;
+      --accent:  #15803d;
+      --accent2: #166534;
       --green:   #15803d;
       --purple:  #7c3aed;
       --orange:  #b45309;
       --shadow:  0 8px 32px rgba(0,0,0,.08);
     }
+    [data-theme="dark"] .m-light, [data-theme="light"] .m-dark { display: none !important; }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -53,6 +65,8 @@
 
     a { color: var(--accent); text-decoration: none; }
     a:hover { color: var(--accent2); text-decoration: underline; }
+    code, kbd { font-family: "Fira Code", "Cascadia Code", monospace; font-size: .88em; }
+    kbd { font-size: .8em; padding: .05rem .35rem; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; background: var(--bg3); }
 
     /* ── Nav ───────────────────────────────────────────── */
     nav {
@@ -63,10 +77,7 @@
       backdrop-filter: blur(12px);
       border-bottom: 1px solid var(--border);
     }
-    .nav-logo {
-      font-size: 1.15rem; font-weight: 700; letter-spacing: -.02em;
-      color: var(--fg);
-    }
+    .nav-logo { font-size: 1.15rem; font-weight: 700; letter-spacing: -.02em; color: var(--fg); }
     .nav-logo span { color: var(--accent); }
     .nav-links { display: flex; gap: 1.5rem; align-items: center; font-size: .9rem; }
     .nav-links a { color: var(--muted); transition: color .15s; }
@@ -74,12 +85,11 @@
     .nav-cta {
       display: inline-flex; align-items: center; gap: .4rem;
       padding: .35rem .9rem; border-radius: 6px;
-      background: var(--accent); color: var(--bg);
+      background: var(--accent); color: var(--bg) !important;
       font-size: .85rem; font-weight: 600;
       transition: background .15s;
     }
-    .nav-cta:hover { background: var(--accent2); text-decoration: none; color: var(--bg); }
-
+    .nav-cta:hover { background: var(--accent2); text-decoration: none; }
     .theme-toggle {
       background: var(--bg2); border: 1px solid var(--border);
       border-radius: 6px; padding: .35rem .6rem;
@@ -89,252 +99,179 @@
     .theme-toggle:hover { border-color: var(--accent); }
 
     /* ── Hero ──────────────────────────────────────────── */
-    .hero {
-      text-align: center;
-      padding: 6rem 1.5rem 4rem;
-      max-width: 900px; margin: 0 auto;
-    }
+    .hero { text-align: center; padding: 6rem 1.5rem 4rem; max-width: 900px; margin: 0 auto; }
     .hero-badge {
-      display: inline-block;
-      padding: .25rem .75rem; border-radius: 20px;
-      border: 1px solid var(--border);
-      font-size: .8rem; color: var(--muted); margin-bottom: 1.5rem;
-      background: var(--bg2);
+      display: inline-block; padding: .25rem .75rem; border-radius: 20px;
+      border: 1px solid var(--border); font-size: .8rem; color: var(--muted);
+      margin-bottom: 1.5rem; background: var(--bg2);
     }
     .hero-badge strong { color: var(--green); }
-    h1 {
-      font-size: clamp(2.4rem, 6vw, 4rem);
-      font-weight: 800; letter-spacing: -.04em;
-      line-height: 1.1; margin-bottom: 1.25rem;
-    }
+    h1 { font-size: clamp(2.4rem, 6vw, 4rem); font-weight: 800; letter-spacing: -.04em; line-height: 1.1; margin-bottom: 1.25rem; }
     h1 .accent { color: var(--accent); }
-    .hero-sub {
-      font-size: clamp(1rem, 2.5vw, 1.2rem);
-      color: var(--muted); max-width: 620px; margin: 0 auto 2.5rem;
-    }
+    .hero-sub { font-size: clamp(1rem, 2.5vw, 1.2rem); color: var(--muted); max-width: 640px; margin: 0 auto 2.5rem; }
     .hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
-    .btn-primary {
+    .btn-primary, .btn-secondary {
       display: inline-flex; align-items: center; gap: .5rem;
       padding: .65rem 1.4rem; border-radius: 8px;
-      background: var(--accent); color: var(--bg);
       font-size: .95rem; font-weight: 600;
-      transition: background .15s, transform .1s;
+      transition: background .15s, border-color .15s, transform .1s;
     }
+    .btn-primary { background: var(--accent); color: var(--bg); }
     .btn-primary:hover { background: var(--accent2); text-decoration: none; color: var(--bg); transform: translateY(-1px); }
-    .btn-primary.disabled { opacity: .4; cursor: not-allowed; pointer-events: none; }
-    .btn-secondary {
-      display: inline-flex; align-items: center; gap: .5rem;
-      padding: .65rem 1.4rem; border-radius: 8px;
-      border: 1px solid var(--border);
-      background: var(--bg2); color: var(--fg);
-      font-size: .95rem; font-weight: 600;
-      transition: border-color .15s, transform .1s;
-    }
+    .btn-secondary { border: 1px solid var(--border); background: var(--bg2); color: var(--fg); }
     .btn-secondary:hover { border-color: var(--accent); text-decoration: none; color: var(--fg); transform: translateY(-1px); }
-
     .hero-stats {
       display: flex; gap: 2.5rem; justify-content: center; flex-wrap: wrap;
-      margin-top: 3.5rem; padding-top: 2rem;
-      border-top: 1px solid var(--border);
+      margin-top: 3.5rem; padding-top: 2rem; border-top: 1px solid var(--border);
     }
     .stat { text-align: center; }
     .stat-val { font-size: 1.6rem; font-weight: 700; color: var(--fg); }
     .stat-label { font-size: .8rem; color: var(--muted); margin-top: .15rem; }
 
-    /* ── Screenshot ────────────────────────────────────── */
-    .screenshot-wrap { max-width: 1060px; margin: 0 auto; padding: 0 1.5rem 5rem; }
-    .screenshot {
-      position: relative; border-radius: 12px;
-      border: 1px solid var(--border); overflow: hidden;
+    /* ── Framed screenshots ────────────────────────────── */
+    .frame {
+      border-radius: 12px; border: 1px solid var(--border); overflow: hidden;
       background: var(--bg2); box-shadow: var(--shadow);
     }
-    .screenshot img { width: 100%; display: block; border-radius: 0 0 8px 8px; }
-    .screenshot-bar {
-      display: flex; align-items: center; gap: .5rem;
-      padding: .6rem 1rem;
-      background: var(--bg3); border-bottom: 1px solid var(--border);
-    }
+    .frame img { width: 100%; height: auto; display: block; }
+    .frame-bar { display: flex; align-items: center; gap: .5rem; padding: .6rem 1rem; background: var(--bg3); border-bottom: 1px solid var(--border); }
     .dot { width: 12px; height: 12px; border-radius: 50%; }
     .dot-red { background: #ff5f57; }
     .dot-yel { background: #febc2e; }
     .dot-grn { background: #28c840; }
+    .screenshot-wrap { max-width: 1060px; margin: 0 auto; padding: 0 1.5rem 5rem; }
 
-    /* ── Section ───────────────────────────────────────── */
+    /* ── Sections ──────────────────────────────────────── */
     section { padding: 5rem 1.5rem; }
-    .section-inner { max-width: 1060px; margin: 0 auto; }
-    .section-label {
-      font-size: .75rem; font-weight: 600; letter-spacing: .1em;
-      text-transform: uppercase; color: var(--accent); margin-bottom: .6rem;
+    .section-inner { max-width: 1120px; margin: 0 auto; }
+    .section-label { font-size: .75rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-bottom: .6rem; }
+    h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); font-weight: 700; letter-spacing: -.03em; margin-bottom: .75rem; }
+    .section-sub { font-size: 1.05rem; color: var(--muted); max-width: 600px; margin-bottom: 2.5rem; }
+    .divider { border: none; border-top: 1px solid var(--border); margin: 0; }
+
+    /* ── Demo carousel ─────────────────────────────────── */
+    .demo-tabs { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+    .demo-tab {
+      padding: .4rem .85rem; border-radius: 999px;
+      border: 1px solid var(--border); background: var(--bg2);
+      color: var(--muted); font: inherit; font-size: .85rem; font-weight: 500;
+      cursor: pointer; transition: all .15s;
     }
-    h2 {
-      font-size: clamp(1.6rem, 4vw, 2.2rem);
-      font-weight: 700; letter-spacing: -.03em;
-      margin-bottom: .75rem;
+    .demo-tab:hover { border-color: var(--accent); color: var(--fg); }
+    .demo-tab[aria-selected="true"] { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--bg2)); }
+    .demo-viewport { position: relative; }
+    .demo-track {
+      display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth;
+      scrollbar-width: none; overscroll-behavior-x: contain;
     }
-    .section-sub {
-      font-size: 1.05rem; color: var(--muted);
-      max-width: 560px; margin-bottom: 3rem;
+    .demo-track::-webkit-scrollbar { display: none; }
+    .demo-slide {
+      flex: 0 0 100%; scroll-snap-align: start;
+      display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); gap: 2.5rem; align-items: center;
+      padding: .5rem 1.5rem 1.75rem;
+    }
+    /* A tighter shadow than elsewhere: it must not reach into the neighbouring slides */
+    .demo-media .frame { box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+    [data-theme="light"] .demo-media .frame { box-shadow: 0 6px 18px rgba(0,0,0,.08); }
+    .demo-media .frame img { aspect-ratio: 16 / 10; object-fit: cover; object-position: center; background: var(--bg3); }
+    /* Click (or Enter) to enlarge */
+    .demo-media .frame { position: relative; cursor: zoom-in; transition: border-color .15s, transform .15s; }
+    .demo-media .frame:hover, .demo-media .frame:focus-visible { border-color: var(--accent); outline: none; }
+    .demo-media .frame::after {
+      content: "⤢  Click to enlarge"; position: absolute; right: .75rem; bottom: .75rem;
+      padding: .3rem .65rem; border-radius: 999px; font-size: .78rem; font-weight: 600;
+      background: color-mix(in srgb, var(--bg) 88%, transparent); color: var(--fg); border: 1px solid var(--border);
+      opacity: 0; transition: opacity .15s; pointer-events: none;
+    }
+    .demo-media .frame:hover::after, .demo-media .frame:focus-visible::after { opacity: 1; }
+
+    /* ── Lightbox ──────────────────────────────────────── */
+    .lightbox { border: none; padding: 0; margin: auto; background: transparent; color: var(--fg); max-width: none; max-height: none; overflow: visible; }
+    .lightbox::backdrop { background: rgba(0, 0, 0, .82); backdrop-filter: blur(4px); }
+    .lb-inner { display: flex; flex-direction: column; gap: .75rem; width: min(94vw, calc((100vh - 9rem) * 1.6)); }
+    .lb-head { display: flex; align-items: center; gap: .75rem; color: #f0edd8; }
+    .lb-title { flex: 1; font-size: 1.05rem; font-weight: 600; }
+    .lb-count { font-size: .85rem; opacity: .75; font-variant-numeric: tabular-nums; }
+    .lb-btn {
+      width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+      border: 1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.08); color: #fff;
+      font-size: 1.15rem; line-height: 1; cursor: pointer; transition: background .15s, border-color .15s;
+    }
+    .lb-btn:hover:not(:disabled) { background: rgba(255,255,255,.18); border-color: rgba(255,255,255,.5); }
+    .lb-btn:disabled { opacity: .3; cursor: default; }
+    .lb-frame { border-radius: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,.15); box-shadow: 0 20px 60px rgba(0,0,0,.5); background: #000; }
+    .lb-frame img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: contain; }
+    .lb-hint { text-align: center; font-size: .8rem; color: #f0edd8; opacity: .6; }
+    @media (max-width: 600px) { .lb-hint { display: none; } }
+    .demo-text h3 { font-size: 1.45rem; font-weight: 700; letter-spacing: -.02em; margin-bottom: .6rem; }
+    .demo-text p { color: var(--muted); margin-bottom: 1rem; }
+    .demo-text ul { list-style: none; display: flex; flex-direction: column; gap: .45rem; }
+    .demo-text li { position: relative; padding-left: 1.2rem; font-size: .93rem; color: var(--muted); }
+    .demo-text li::before { content: "✦"; position: absolute; left: 0; top: .35rem; color: var(--accent); font-size: .7rem; line-height: 1; }
+    .demo-text li b { color: var(--fg); }
+    .demo-controls { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: .25rem; }
+    .demo-nav {
+      width: 40px; height: 40px; border-radius: 50%;
+      border: 1px solid var(--border); background: var(--bg2); color: var(--fg);
+      font-size: 1.2rem; line-height: 1; cursor: pointer; transition: border-color .15s, color .15s;
+    }
+    .demo-nav:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .demo-nav:disabled { opacity: .35; cursor: default; }
+    .demo-count { font-size: .85rem; color: var(--muted); min-width: 4.5rem; text-align: center; font-variant-numeric: tabular-nums; }
+    @media (max-width: 860px) {
+      .demo-slide { grid-template-columns: 1fr; gap: 1.25rem; }
     }
 
     /* ── Feature grid ─────────────────────────────────── */
-    .feature-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 1.25rem;
-    }
+    .feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.25rem; }
     .feature-card {
+      display: flex; flex-direction: column;
       padding: 1.5rem; border-radius: var(--radius);
       border: 1px solid var(--border); background: var(--bg2);
       transition: border-color .2s, transform .15s;
     }
     .feature-card:hover { border-color: var(--accent); transform: translateY(-2px); }
-    .feature-icon {
-      width: 40px; height: 40px; border-radius: 8px; margin-bottom: 1rem;
-      display: flex; align-items: center; justify-content: center; font-size: 1.3rem;
-    }
+    .feature-icon { width: 40px; height: 40px; border-radius: 8px; margin-bottom: 1rem; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; }
     .feature-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: .4rem; }
-    .feature-card p { font-size: .9rem; color: var(--muted); line-height: 1.5; }
-
-    /* ── Split layout ─────────────────────────────────── */
-    .split {
-      display: grid; grid-template-columns: 1fr 1fr;
-      gap: 3.5rem; align-items: center;
-    }
-    .split.reverse { direction: rtl; }
-    .split.reverse > * { direction: ltr; }
-    @media (max-width: 720px) {
-      .split, .split.reverse { grid-template-columns: 1fr; direction: ltr; }
-    }
-    .split-text h2 { margin-bottom: .6rem; }
-    .split-text p { color: var(--muted); margin-bottom: 1.25rem; }
-    .split-text ul { list-style: none; display: flex; flex-direction: column; gap: .5rem; }
-    .split-text ul li {
-      display: flex; align-items: flex-start; gap: .5rem;
-      font-size: .95rem; color: var(--muted);
-    }
-    .split-text ul li::before { content: "✦"; color: var(--accent); font-size: .7rem; margin-top: .35rem; flex-shrink: 0; }
-    .split-screenshot {
-      border-radius: var(--radius); border: 1px solid var(--border);
-      background: var(--bg2); overflow: hidden; box-shadow: var(--shadow);
-    }
-    .split-screenshot img { width: 100%; display: block; }
-
-    /* ── Blocks grid ──────────────────────────────────── */
-    .blocks-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: 1rem;
-    }
-    .block-card {
-      padding: 1.25rem; border-radius: var(--radius);
-      border: 1px solid var(--border); background: var(--bg2);
-    }
-    .block-card .tag {
-      display: inline-block; font-size: .7rem; font-weight: 600;
-      letter-spacing: .06em; text-transform: uppercase;
-      padding: .15rem .45rem; border-radius: 4px; margin-bottom: .6rem;
-    }
-    .block-card h4 { font-size: .95rem; font-weight: 600; margin-bottom: .3rem; }
-    .block-card p { font-size: .85rem; color: var(--muted); }
+    .feature-card p { font-size: .9rem; color: var(--muted); line-height: 1.5; flex: 1; }
+    .feature-card .see { margin-top: .8rem; font-size: .85rem; font-weight: 600; }
 
     /* ── SSH grid ─────────────────────────────────────── */
-    .ssh-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 1rem; margin-top: 2rem;
-    }
-    .ssh-card {
-      padding: 1.25rem 1.25rem 1rem; border-radius: var(--radius);
-      border: 1px solid var(--border); background: var(--bg2);
-    }
-    .ssh-card .method {
-      font-size: .7rem; font-weight: 700; letter-spacing: .08em;
-      text-transform: uppercase; margin-bottom: .5rem; color: var(--accent);
-    }
+    .ssh-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; }
+    .ssh-card { padding: 1.25rem 1.25rem 1rem; border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg2); }
+    .ssh-card .method { font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin-bottom: .5rem; color: var(--accent); }
     .ssh-card h4 { font-size: .95rem; font-weight: 600; margin-bottom: .3rem; }
     .ssh-card p { font-size: .85rem; color: var(--muted); }
 
-    /* ── Themes strip ─────────────────────────────────── */
-    .themes-strip { display: flex; gap: .75rem; flex-wrap: wrap; margin-top: 1.5rem; }
-    .theme-swatch {
-      padding: .5rem .9rem; border-radius: 8px;
-      border: 1px solid var(--border); font-size: .85rem; font-weight: 500;
-      cursor: default;
-    }
-
-    /* ── Code demo ────────────────────────────────────── */
-    .code-demo {
-      background: var(--bg3); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 1.25rem 1.5rem;
-      font-family: "Fira Code", "Cascadia Code", monospace;
-      font-size: .88rem; line-height: 1.8;
-    }
-    .code-demo .cmd-line { color: var(--muted); }
-    .code-demo .cmd-exec { color: var(--orange); }
-    .code-demo .cmd-out { color: var(--green); }
-    .code-demo .cmd-fence { color: var(--purple); }
-
     /* ── Tech pills ───────────────────────────────────── */
-    .tech-grid { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1.5rem; }
-    .tech-pill {
-      display: flex; align-items: center; gap: .5rem;
-      padding: .5rem 1rem; border-radius: 20px;
-      border: 1px solid var(--border); background: var(--bg2);
-      font-size: .88rem; font-weight: 500;
-    }
+    .tech-grid { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; margin-top: 1.75rem; }
+    .tech-pill { display: flex; align-items: center; gap: .5rem; padding: .5rem 1rem; border-radius: 20px; border: 1px solid var(--border); background: var(--bg2); font-size: .88rem; font-weight: 500; }
 
     /* ── Install / CTA ────────────────────────────────── */
-    .cta-box {
-      text-align: center; border: 1px solid var(--border);
-      border-radius: 16px; padding: 4rem 2rem; background: var(--bg2);
-    }
+    .cta-box { text-align: center; border: 1px solid var(--border); border-radius: 16px; padding: 4rem 2rem; background: var(--bg2); }
     .cta-box h2 { font-size: clamp(1.5rem, 4vw, 2rem); margin-bottom: .75rem; }
-    .cta-box p { color: var(--muted); max-width: 480px; margin-inline: auto; margin-bottom: 2rem; }
-    .carousel-tabs { display: flex; gap: .5rem; justify-content: center; margin-bottom: 1.5rem; }
-    .carousel-tab {
-      padding: .45rem 1rem; border-radius: 6px;
-      border: 1px solid var(--border); background: var(--bg3);
-      font-size: .88rem; font-weight: 500; color: var(--muted);
-      cursor: pointer; transition: all .15s;
+    .cta-box > p { color: var(--muted); max-width: 480px; margin-inline: auto; margin-bottom: 2rem; }
+    .platform-tabs { display: flex; gap: .5rem; justify-content: center; margin-bottom: 1.5rem; }
+    .platform-tab {
+      padding: .45rem 1rem; border-radius: 6px; border: 1px solid var(--border); background: var(--bg3);
+      font: inherit; font-size: .88rem; font-weight: 500; color: var(--muted); cursor: pointer; transition: all .15s;
     }
-    .carousel-tab:hover { border-color: var(--accent); color: var(--fg); }
-    .carousel-tab.active { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
-    .carousel-tab.hidden { display: none; }
-    .install-carousel { position: relative; min-height: 160px; }
+    .platform-tab:hover { border-color: var(--accent); color: var(--fg); }
+    .platform-tab.active { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
     .install-slide { display: none; flex-direction: column; align-items: center; gap: 1rem; animation: fadeIn .2s ease; }
     .install-slide.active { display: flex; }
     .install-platform { font-size: 1.1rem; font-weight: 600; }
     .install-downloads { display: flex; gap: .75rem; flex-wrap: wrap; justify-content: center; margin-top: .5rem; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
     .install-block {
-      display: inline-block; background: var(--bg3);
-      border: 1px solid var(--border); border-radius: 8px;
-      padding: .75rem 1.5rem; font-family: "Fira Code", monospace;
-      font-size: .9rem; color: var(--green);
+      display: inline-block; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+      padding: .75rem 1.5rem; font-family: "Fira Code", monospace; font-size: .9rem; color: var(--green); text-align: left;
     }
-
-    .license-box {
-      margin: 1.25rem auto 0; max-width: 880px; text-align: left;
-      border: 1px solid var(--border); border-radius: 10px;
-      background: var(--bg3); padding: .85rem;
-    }
-    .license-label {
-      font-size: .75rem; text-transform: uppercase; letter-spacing: .08em;
-      color: var(--muted); margin-bottom: .55rem; font-weight: 600;
-    }
+    .license-box { margin: 1.25rem auto 0; max-width: 880px; text-align: left; border: 1px solid var(--border); border-radius: 10px; background: var(--bg3); padding: .85rem; }
+    .license-label { font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: .55rem; font-weight: 600; }
     .license-row { display: flex; gap: .6rem; align-items: center; }
-    .license-key {
-      flex: 1; min-width: 0; background: var(--bg);
-      border: 1px solid var(--border); border-radius: 8px;
-      color: var(--fg); font-family: "Fira Code", "Cascadia Code", monospace;
-      font-size: .76rem; padding: .6rem .7rem;
-    }
-    .license-copy {
-      padding: .58rem .8rem; border-radius: 8px;
-      border: 1px solid var(--border); background: var(--bg2);
-      color: var(--fg); font-size: .82rem; font-weight: 600;
-      cursor: pointer; white-space: nowrap;
-    }
+    .license-key { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--fg); font-family: "Fira Code", "Cascadia Code", monospace; font-size: .76rem; padding: .6rem .7rem; }
+    .license-copy { padding: .58rem .8rem; border-radius: 8px; border: 1px solid var(--border); background: var(--bg2); color: var(--fg); font-size: .82rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
     .license-copy:hover { border-color: var(--accent); }
     .license-hint { margin-top: .45rem; color: var(--muted); font-size: .78rem; }
     @media (max-width: 680px) {
@@ -343,19 +280,16 @@
     }
 
     /* ── Footer ────────────────────────────────────────── */
-    footer {
-      text-align: center; padding: 2.5rem 1.5rem;
-      border-top: 1px solid var(--border);
-      font-size: .85rem; color: var(--muted);
-    }
+    footer { text-align: center; padding: 2.5rem 1.5rem; border-top: 1px solid var(--border); font-size: .85rem; color: var(--muted); }
     footer a { color: var(--muted); }
     footer a:hover { color: var(--fg); }
 
-    .divider { border: none; border-top: 1px solid var(--border); margin: 0; }
-
     @media (max-width: 600px) {
       nav { padding: 0 1rem; }
-      .nav-links a:not(.theme-toggle):not(.nav-cta) { display: none; }
+      .nav-links a:not(.nav-cta) { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .demo-track { scroll-behavior: auto; }
     }
   </style>
 </head>
@@ -364,11 +298,10 @@
 <nav>
   <span class="nav-logo">Kee<span>down</span></span>
   <div class="nav-links">
+    <a href="#demo">Demo</a>
     <a href="#features">Features</a>
-    <a href="#editor">Editor</a>
-    <a href="#terminal">Terminal</a>
     <a href="#install">Install</a>
-    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">🌓</button>
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle light / dark" aria-label="Toggle light or dark theme">🌓</button>
     <a class="nav-cta" href="#install">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       Download
@@ -377,197 +310,237 @@
 </nav>
 
 <div class="hero">
-  <div class="hero-badge">
-    <strong>NEW</strong> &nbsp;Built with Tauri 2 · Svelte 5 · Milkdown · xterm.js
-  </div>
+  <div class="hero-badge"><strong>v0.7</strong> &nbsp;Runnable code blocks · review before run · print to PDF</div>
   <h1>The editor that<br/><span class="accent">thinks in Markdown</span></h1>
   <p class="hero-sub">
-    A fast, cross-platform WYSIWYG editor with a native terminal, inline shell execution,
-    SSH binding, and rich block elements — no Electron, no server, just a ~5 MB binary.
+    Write notes and runbooks that run. Keedown is a fast Markdown editor with runnable code blocks,
+    a built-in terminal and SSH binding — and nothing from someone else runs until you've reviewed it.
   </p>
   <div class="hero-actions">
     <a class="btn-primary" href="#install">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Download Free
+      Download for Linux &amp; macOS
     </a>
+    <a class="btn-secondary" href="#demo">▶ Watch the tour</a>
   </div>
-
   <div class="hero-stats">
-    <div class="stat"><div class="stat-val">~5 MB</div><div class="stat-label">Binary size</div></div>
-    <div class="stat"><div class="stat-val">~30 MB</div><div class="stat-label">RAM at idle</div></div>
-    <div class="stat"><div class="stat-val">3</div><div class="stat-label">Platforms</div></div>
-    <div class="stat"><div class="stat-val">0</div><div class="stat-label">Server processes</div></div>
+    <div class="stat"><div class="stat-val">~26 MB</div><div class="stat-label">Download</div></div>
     <div class="stat"><div class="stat-val">No</div><div class="stat-label">Electron</div></div>
+    <div class="stat"><div class="stat-val">Offline</div><div class="stat-label">No account, no cloud</div></div>
+    <div class="stat"><div class="stat-val">Plain text</div><div class="stat-label">Markdown files you own</div></div>
   </div>
 </div>
 
 <div class="screenshot-wrap">
-  <div class="screenshot">
-    <div class="screenshot-bar">
-      <div class="dot dot-red"></div>
-      <div class="dot dot-yel"></div>
-      <div class="dot dot-grn"></div>
-    </div>
-    <img src="screenshots/hero.png" alt="Keedown main editor view" />
+  <div class="frame">
+    <div class="frame-bar"><div class="dot dot-red"></div><div class="dot dot-yel"></div><div class="dot dot-grn"></div></div>
+    <img class="m-dark" src="screenshots/dark/hero.png" width="2560" height="1600" alt="Keedown showing a release runbook with a runnable code block and its output, a script block and a checklist table" />
+    <img class="m-light" src="screenshots/light/hero.png" width="2560" height="1600" alt="Keedown showing a release runbook with a runnable code block and its output, a script block and a checklist table" />
   </div>
 </div>
+
+<hr class="divider" />
+
+<section id="demo">
+  <div class="section-inner">
+    <p class="section-label">See it in action</p>
+    <h2>A tour of Keedown</h2>
+    <p class="section-sub">Seven things Keedown does, recorded in the app. Swipe, use the arrows, or pick a feature — click a demo to see it full size.</p>
+
+    <div class="demo" aria-roledescription="carousel" aria-label="Feature demos">
+      <div class="demo-tabs" role="tablist" aria-label="Features"></div>
+      <div class="demo-viewport">
+        <div class="demo-track" tabindex="0">
+
+          <article class="demo-slide" id="demo-write" data-title="Write" aria-roledescription="slide">
+            <div class="demo-media"><div class="frame">
+              <img class="m-dark" src="screenshots/dark/slash.webp" width="1280" height="800" loading="lazy" alt="Typing a slash opens the block menu; typing 'kan' filters it to Kanban Board, which is inserted" />
+              <img class="m-light" src="screenshots/light/slash.webp" width="1280" height="800" loading="lazy" alt="Typing a slash opens the block menu; typing 'kan' filters it to Kanban Board, which is inserted" />
+            </div></div>
+            <div class="demo-text">
+              <h3>Write with a slash</h3>
+              <p>Type <kbd>/</kbd> anywhere, filter by name and press <kbd>Enter</kbd> — no mouse needed.</p>
+              <ul>
+                <li>Headings, lists, task lists and quotes</li>
+                <li>Code blocks with syntax highlighting</li>
+                <li>Tables, callouts, kanban boards and carousels</li>
+                <li>Images and attachments stored inside the note</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="demo-slide" id="demo-blocks" data-title="Blocks" aria-roledescription="slide">
+            <div class="demo-media"><div class="frame">
+              <img class="m-dark" src="screenshots/dark/blocks.png" width="2560" height="1600" loading="lazy" alt="A planning note with a tip callout, a three-column kanban board, a warning callout and a milestone table" />
+              <img class="m-light" src="screenshots/light/blocks.png" width="2560" height="1600" loading="lazy" alt="A planning note with a tip callout, a three-column kanban board, a warning callout and a milestone table" />
+            </div></div>
+            <div class="demo-text">
+              <h3>Rich blocks, plain Markdown</h3>
+              <p>Boards, callouts and tables render as you type — and every one of them is stored as plain text you can read anywhere.</p>
+              <ul>
+                <li>Drag-and-drop kanban boards</li>
+                <li>Info, tip, warning and critical callouts</li>
+                <li>Tables with a row and column toolbar</li>
+                <li>Image and Markdown slides</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="demo-slide" id="demo-run" data-title="Run code" aria-roledescription="slide">
+            <div class="demo-media"><div class="frame">
+              <img class="m-dark" src="screenshots/dark/run.webp" width="1280" height="800" loading="lazy" alt="Running two inline commands and a Python script block; each output appears under its command" />
+              <img class="m-light" src="screenshots/light/run.webp" width="1280" height="800" loading="lazy" alt="Running two inline commands and a Python script block; each output appears under its command" />
+            </div></div>
+            <div class="demo-text">
+              <h3>Runbooks that run</h3>
+              <p>Switch a code block on and run it with <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd> or its ▶ button. Output streams in as it's produced.</p>
+              <ul>
+                <li><b>Inline</b>: every line is a command, its output right under it</li>
+                <li><b>Script</b>: the whole block runs, output in a block below</li>
+                <li>Python, Go, Node and more through configurable runners</li>
+                <li>On this computer, the tab's SSH host, or a locked terminal</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="demo-slide" id="demo-review" data-title="Review" aria-roledescription="slide">
+            <div class="demo-media"><div class="frame">
+              <img class="m-dark" src="screenshots/dark/trust.png" width="1352" height="845" loading="lazy" alt="Review dialog listing every command in a document before it runs, with the requested command marked" />
+              <img class="m-light" src="screenshots/light/trust.png" width="1352" height="845" loading="lazy" alt="Review dialog listing every command in a document before it runs, with the requested command marked" />
+            </div></div>
+            <div class="demo-text">
+              <h3>Nothing runs behind your back</h3>
+              <p>Code blocks run only when their author switched them on, and a document from someone else shows you every command before the first one runs.</p>
+              <ul>
+                <li>Trust a document, or run one command once</li>
+                <li>Trust covers the exact text — any change asks again</li>
+                <li>Hidden characters are shown before you decide</li>
+                <li>Sign your documents; teams can certify their authors</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="demo-slide" id="demo-workspace" data-title="Workspace" aria-roledescription="slide">
+            <div class="demo-media"><div class="frame">
+              <img class="m-dark" src="screenshots/dark/workspace.webp" width="1280" height="800" loading="lazy" alt="The workspace canvas opening groups, switching notes and filtering tabs by name" />
+              <img class="m-light" src="screenshots/light/workspace.webp" width="1280" height="800" loading="lazy" alt="The workspace canvas opening groups, switching notes and filtering tabs by name" />
+            </div></div>
+            <div class="demo-text">
+              <h3>Every tab, one canvas away</h3>
+              <p>Open the workspace and your tabs fan out as a tree of groups, with the current note beside it.</p>
+              <ul>
+                <li>Nested groups, drag-and-drop and tab colours</li>
+                <li>Folders from disk linked in as groups</li>
+                <li>Filter by name, or search the text of every tab</li>
+                <li>Separate workspaces for work and personal notes</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="demo-slide" id="demo-print" data-title="Print" aria-roledescription="slide">
+            <div class="demo-media"><div class="frame">
+              <img class="m-dark" src="screenshots/dark/print.png" width="2560" height="1600" loading="lazy" alt="Print dialog with paper, margins, header and footer options next to a live page preview" />
+              <img class="m-light" src="screenshots/light/print.png" width="2560" height="1600" loading="lazy" alt="Print dialog with paper, margins, header and footer options next to a live page preview" />
+            </div></div>
+            <div class="demo-text">
+              <h3>Pages that look the way you expect</h3>
+              <p>See every page before it prints — on paper or to PDF.</p>
+              <ul>
+                <li>A4, Letter or Legal, portrait or landscape</li>
+                <li>Headers and footers with title, date and page numbers</li>
+                <li>Fit wide content, wrap long code lines</li>
+                <li>Choose whether script output and highlights print</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="demo-slide" id="demo-themes" data-title="Themes" aria-roledescription="slide">
+            <div class="demo-media"><div class="frame">
+              <img class="m-dark" src="screenshots/dark/themes.webp" width="1280" height="800" loading="lazy" alt="Switching between Keedown's four themes from Settings" />
+              <img class="m-light" src="screenshots/light/themes.webp" width="1280" height="800" loading="lazy" alt="Switching between Keedown's four themes from Settings" />
+            </div></div>
+            <div class="demo-text">
+              <h3>Four themes, every colour yours</h3>
+              <p>Light, Dark, Light Contrast and Dark Contrast — the whole app follows instantly.</p>
+              <ul>
+                <li>Override single colours on top of any theme</li>
+                <li>Text and code fonts and sizes</li>
+                <li>Terminal colour schemes and cursor style</li>
+                <li>Interface scale from 75% to 150%</li>
+              </ul>
+            </div>
+          </article>
+
+        </div>
+      </div>
+      <div class="demo-controls">
+        <button class="demo-nav" data-dir="-1" aria-label="Previous feature">‹</button>
+        <span class="demo-count" aria-live="polite"></span>
+        <button class="demo-nav" data-dir="1" aria-label="Next feature">›</button>
+      </div>
+    </div>
+  </div>
+</section>
 
 <hr class="divider" />
 
 <section id="features">
   <div class="section-inner">
     <p class="section-label">Features</p>
-    <h2>Everything you need,<br/>nothing you don't</h2>
-    <p class="section-sub">Keedown is built around a single idea: your notes should be fast to write, easy to navigate, and powerful enough to replace a terminal.</p>
+    <h2>Everything in the box</h2>
+    <p class="section-sub">Notes that are fast to write, easy to find again, and able to do the work they describe.</p>
 
     <div class="feature-grid">
       <div class="feature-card">
         <div class="feature-icon" style="background:rgba(88,166,255,.12)">✦</div>
-        <h3>WYSIWYG Markdown</h3>
-        <p>Write markdown and see it rendered live. No split panes — the source and the output are one. Swap to raw mode anytime.</p>
+        <h3>Rich Markdown editing</h3>
+        <p>Tables, callouts, kanban boards and carousels render as you type and save as plain Markdown. Switch to the raw text any time.</p>
+        <a class="see" href="#demo-write" data-demo="demo-write">See it →</a>
       </div>
       <div class="feature-card">
-        <div class="feature-icon" style="background:rgba(63,185,80,.12)">⌘</div>
-        <h3>Slash Commands</h3>
-        <p>Type <code>/</code> to insert headings, lists, callouts, tables, kanban boards, carousels, images, and file attachments — all from the keyboard.</p>
+        <div class="feature-icon" style="background:rgba(63,185,80,.12)">▶</div>
+        <h3>Runnable code blocks</h3>
+        <p>Inline blocks run line by line; script blocks run whole — in bash, Python, Go, Node and more. Save outputs with the note as <code>.xmd</code>, or share a clean <code>.txmd</code> template.</p>
+        <a class="see" href="#demo-run" data-demo="demo-run">See it →</a>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(227,179,65,.12)">🛡</div>
+        <h3>Review before run</h3>
+        <p>Commands in documents from other people run only after you've seen them, and the check is repeated in the app's core right where the process starts.</p>
+        <a class="see" href="#demo-review" data-demo="demo-review">See it →</a>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(88,166,255,.12)">⌗</div>
+        <h3>Workspace canvas</h3>
+        <p>Nested groups, linked folders and separate workspaces, with search across the text of every tab.</p>
+        <a class="see" href="#demo-workspace" data-demo="demo-workspace">See it →</a>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(63,185,80,.12)">🖨</div>
+        <h3>Print &amp; PDF</h3>
+        <p>Paginated output with headers, footers and page numbers, previewed exactly as it will print — for notes, code files and more.</p>
+        <a class="see" href="#demo-print" data-demo="demo-print">See it →</a>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(165,169,245,.12)">⧉</div>
+        <h3>More than notes</h3>
+        <p>Open PDFs (search and sign them), CSV files in a grid, images, draw.io diagrams, and code files with linting and compare against disk or history.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(227,179,65,.12)">✎</div>
+        <h3>Worklogs, highlights &amp; history</h3>
+        <p>Attach worklogs to any passage, highlight text, and step back through a note's version history.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(88,166,255,.12)">⚙</div>
+        <h3>An API for agents</h3>
+        <p>An optional local REST API lets AI agents and scripts read and update your notes, with ready-made skill files to get them started.</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon" style="background:rgba(165,169,245,.12)">$_</div>
-        <h3>Inline Shell Execution</h3>
-        <p>Run any command inline and insert the output as a fenced block. Works with the local shell, SSH, GCloud IAP, and AWS SSM.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon" style="background:rgba(227,179,65,.12)">⎋</div>
-        <h3>Integrated Terminal</h3>
-        <p>Full xterm.js terminal with multiple sessions per tab, custom fonts, colours, and scrollback. SSH, tmux, and PTY — all first-class.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon" style="background:rgba(88,166,255,.12)">☁</div>
-        <h3>SSH Binding</h3>
-        <p>Bind a tab to an SSH profile (key, password, certificate, GCloud IAP, or AWS SSM) and inline commands execute remotely, not locally.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon" style="background:rgba(63,185,80,.12)">◑</div>
-        <h3>Themes &amp; Customisation</h3>
-        <p>Light, Dark, Catppuccin, Dracula, GitHub, and GitHub Dark presets. Full accent colour, background, and font control.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon" style="background:rgba(165,169,245,.12)">⇥</div>
-        <h3>Tab Groups</h3>
-        <p>Open as many files as you need. Tabs remember their SSH binding, terminal sessions, search highlights, and scroll position.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon" style="background:rgba(227,179,65,.12)">🔒</div>
-        <h3>Cryptographic Licensing</h3>
-        <p>Time-bound Ed25519-signed licences. Verified at startup with no network call — fully offline, tamper-proof.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<hr class="divider" />
-
-<section id="editor">
-  <div class="section-inner">
-    <p class="section-label">Editor</p>
-    <h2>Rich blocks, right in your document</h2>
-    <p class="section-sub">Insert structured content without leaving the editor. Every block is stored as plain Markdown — no proprietary formats.</p>
-
-    <div class="split" style="margin-bottom:4rem">
-      <div class="split-text">
-        <h2>Slash menu</h2>
-        <p>Hit <kbd>/</kbd> from anywhere and search across all block types. Keyboard-navigable, grouped, and instant.</p>
-        <ul>
-          <li>Headings, bullet, numbered, and task lists</li>
-          <li>Blockquotes and horizontal dividers</li>
-          <li>Fenced code blocks with syntax highlighting</li>
-          <li>Tables with a visual grid picker</li>
-          <li>Callout blocks (Info, Warning, Critical, Tip)</li>
-          <li>Kanban board, image carousel, file attachments</li>
-        </ul>
-      </div>
-      <div class="split-screenshot">
-        <div class="screenshot-bar">
-          <div class="dot dot-red"></div><div class="dot dot-yel"></div><div class="dot dot-grn"></div>
-        </div>
-        <img src="screenshots/slash.gif" alt="Slash command menu" />
-      </div>
-    </div>
-
-    <div class="blocks-grid">
-      <div class="block-card">
-        <div class="tag" style="background:rgba(88,166,255,.12);color:var(--accent)">Callout</div>
-        <h4>Info / Warning / Critical / Tip</h4>
-        <p>Colour-coded callout blocks that render as styled banners and round-trip through standard Markdown fences.</p>
-      </div>
-      <div class="block-card">
-        <div class="tag" style="background:rgba(165,169,245,.12);color:var(--purple)">Kanban</div>
-        <h4>Drag-and-drop board</h4>
-        <p>Full Kanban with multiple columns, drag-and-drop card reordering, and per-card rich text. Stored as a JSON fence.</p>
-      </div>
-      <div class="block-card">
-        <div class="tag" style="background:rgba(63,185,80,.12);color:var(--green)">Carousel</div>
-        <h4>Slide gallery</h4>
-        <p>Paginated image + caption slides. Copy, cut, paste, and reorder slides. Images stored as internal references.</p>
-      </div>
-      <div class="block-card">
-        <div class="tag" style="background:rgba(227,179,65,.12);color:var(--orange)">Table</div>
-        <h4>GFM tables with toolbar</h4>
-        <p>Full table editing with a floating toolbar: add/delete/reorder rows and columns, and convert to plain text.</p>
-      </div>
-      <div class="block-card">
-        <div class="tag" style="background:rgba(88,166,255,.12);color:var(--accent)">Image</div>
-        <h4>Paste or browse</h4>
-        <p>Drag, paste, or browse images. They are stored internally (no external hosting) and render with a resize handle.</p>
-      </div>
-      <div class="block-card">
-        <div class="tag" style="background:rgba(165,169,245,.12);color:var(--purple)">Attachment</div>
-        <h4>Inline file previews</h4>
-        <p>Embed images, PDFs, and videos inline. Zoom to full-screen with a single click.</p>
-      </div>
-    </div>
-
-    <div style="margin-top:3rem">
-      <div class="split-screenshot" style="max-width:100%">
-        <div class="screenshot-bar">
-          <div class="dot dot-red"></div><div class="dot dot-yel"></div><div class="dot dot-grn"></div>
-        </div>
-        <img src="screenshots/blocks.gif" alt="Block elements demo" />
-      </div>
-    </div>
-  </div>
-</section>
-
-<hr class="divider" />
-
-<section>
-  <div class="section-inner">
-    <div class="split reverse">
-      <div class="split-text">
-        <p class="section-label">Inline Commands</p>
-        <h2>Run commands, insert output</h2>
-        <p>Write a command anywhere in your document and execute it with a keyboard shortcut. The result lands as a fenced <code>shell</code> block, right below — no copy-paste required.</p>
-        <ul>
-          <li>Works with any shell command or script</li>
-          <li>Routes through the active SSH / terminal binding</li>
-          <li>30-second timeout; output is trimmed and clean</li>
-          <li>Lock a terminal session to guarantee command routing</li>
-        </ul>
-      </div>
-      <div>
-        <div class="code-demo">
-          <div class="cmd-line"># Type inline and execute</div>
-          <div class="cmd-exec">git log --oneline -5</div>
-          <br/>
-          <div class="cmd-fence">```shell</div>
-          <div class="cmd-out">$ git log --oneline -5</div>
-          <div class="cmd-out">204cc28 Fix: consistent keyboard handling</div>
-          <div class="cmd-out">1a3f901 Fix: Ctrl+C/V in carousel blocks</div>
-          <div class="cmd-out">8b2e443 Feat: image carousel block</div>
-          <div class="cmd-out">5d90c12 Feat: kanban drag-and-drop board</div>
-          <div class="cmd-out">c3a1089 Feat: SSH profile binding</div>
-          <div class="cmd-fence">```</div>
-        </div>
+        <h3>Terminal &amp; SSH</h3>
+        <p>A built-in terminal and shell tabs, and tabs bound to remote hosts — see below.</p>
+        <a class="see" href="#terminal">Details →</a>
       </div>
     </div>
   </div>
@@ -579,47 +552,32 @@
   <div class="section-inner">
     <p class="section-label">Terminal &amp; SSH</p>
     <h2>Connect anywhere, run anything</h2>
-    <p class="section-sub">Keedown has a full PTY terminal built in. Bind a tab to any remote host — commands you run in the editor execute there.</p>
-
-    <div class="split" style="margin-bottom:3rem">
-      <div class="split-screenshot">
-        <div class="screenshot-bar">
-          <div class="dot dot-red"></div><div class="dot dot-yel"></div><div class="dot dot-grn"></div>
-        </div>
-        <img src="screenshots/blocks.gif" alt="Terminal view" />
-      </div>
-      <div class="split-text">
-        <h2>Native PTY, zero overhead</h2>
-        <p>The terminal is an xterm.js view wired directly to a Rust PTY via Tauri IPC. No HTTP, no WebSocket — just raw bytes.</p>
-        <ul>
-          <li>Multiple terminal sessions per tab</li>
-          <li>Custom font family, size, and scrollback</li>
-          <li>Lock a session to route all inline commands through it</li>
-          <li>Full ANSI / VT100 / mouse support</li>
-        </ul>
-      </div>
-    </div>
-
+    <p class="section-sub">A full terminal is built in. Bind a tab to a remote host and the code you run from it executes there.</p>
     <div class="ssh-grid">
       <div class="ssh-card">
-        <div class="method">SSH Key / Cert</div>
+        <div class="method">SSH key / cert</div>
         <h4>Standard SSH</h4>
         <p>Identity file or certificate auth to any OpenSSH-compatible host.</p>
       </div>
       <div class="ssh-card">
         <div class="method">Password</div>
         <h4>Password auth</h4>
-        <p>Plain password login for hosts that don't accept key auth.</p>
+        <p>For hosts that don't accept keys.</p>
       </div>
       <div class="ssh-card">
         <div class="method">GCloud IAP</div>
         <h4>Google Cloud IAP</h4>
-        <p>Tunnel through Identity-Aware Proxy — no public IP needed. Supports interactive PTY sessions.</p>
+        <p>Tunnel through Identity-Aware Proxy — no public IP needed.</p>
       </div>
       <div class="ssh-card">
         <div class="method">AWS SSM</div>
         <h4>AWS Systems Manager</h4>
-        <p>Session Manager shell access to EC2 without opening port 22.</p>
+        <p>Session Manager access to EC2 without opening port 22.</p>
+      </div>
+      <div class="ssh-card">
+        <div class="method">Locked terminal</div>
+        <h4>Your own session</h4>
+        <p>Lock a tab to a terminal — even one you're already logged into — and its commands are typed there.</p>
       </div>
     </div>
   </div>
@@ -628,45 +586,19 @@
 <hr class="divider" />
 
 <section>
-  <div class="section-inner">
-    <div class="split">
-      <div class="split-text">
-        <p class="section-label">Appearance</p>
-        <h2>Six built-in themes, fully customisable</h2>
-        <p>Pick a preset or dial in every colour manually. Changes apply instantly — no restart required.</p>
-        <div class="themes-strip">
-          <div class="theme-swatch" style="background:#ffffff;color:#24292f;border-color:#d0d7de">☀️ Light</div>
-          <div class="theme-swatch" style="background:#0f172a;color:#e2e8f0;border-color:#334155">🌙 Dark</div>
-          <div class="theme-swatch" style="background:#1e1e2e;color:#cdd6f4;border-color:#313244">🌙 Catppuccin</div>
-          <div class="theme-swatch" style="background:#282a36;color:#f8f8f2;border-color:#44475a">🌙 Dracula</div>
-          <div class="theme-swatch" style="background:#ffffff;color:#24292f;border-color:#d0d7de">☀️ GitHub</div>
-          <div class="theme-swatch" style="background:#0d1117;color:#c9d1d9;border-color:#30363d">🌙 GitHub Dark</div>
-        </div>
-      </div>
-      <div class="split-screenshot">
-        <div class="screenshot-bar">
-          <div class="dot dot-red"></div><div class="dot dot-yel"></div><div class="dot dot-grn"></div>
-        </div>
-        <img src="screenshots/theme.gif" alt="Theme switcher" />
-      </div>
-    </div>
-  </div>
-</section>
-
-<hr class="divider" />
-
-<section>
-  <div class="section-inner" style="text-align:center;max-width:680px">
+  <div class="section-inner" style="text-align:center;max-width:720px">
     <p class="section-label">Technology</p>
     <h2>Built on proven open-source foundations</h2>
-    <p style="color:var(--muted);margin-bottom:0">No Electron. No bundled Chromium. Keedown uses the platform WebView — tiny on disk, light on RAM.</p>
-    <div class="tech-grid" style="justify-content:center;margin-top:1.75rem">
+    <p style="color:var(--muted)">No Electron, no bundled Chromium: Keedown uses the system's WebView and a Rust core.</p>
+    <div class="tech-grid">
       <div class="tech-pill">🦀 Tauri 2</div>
       <div class="tech-pill">⚡ Svelte 5</div>
-      <div class="tech-pill">🥛 Milkdown</div>
+      <div class="tech-pill">✒️ Tiptap</div>
+      <div class="tech-pill">🧾 CodeMirror 6</div>
       <div class="tech-pill">🖥 xterm.js</div>
-      <div class="tech-pill">🔐 Ed25519 (dalek)</div>
-      <div class="tech-pill">🔑 ssh2-rs</div>
+      <div class="tech-pill">📄 pdf.js</div>
+      <div class="tech-pill">🔑 russh</div>
+      <div class="tech-pill">🔐 Ed25519</div>
     </div>
   </div>
 </section>
@@ -677,56 +609,39 @@
   <div class="section-inner">
     <div class="cta-box">
       <h2>Download Keedown</h2>
-      <p>Available for Linux, macOS, and Windows. Single binary — no installer required for the portable build.</p>
+      <p>Available for Linux and macOS (Intel).</p>
 
-      <div class="carousel-tabs">
-        <button class="carousel-tab active" onclick="showSlide('linux')" data-platform="linux">🐧 Linux</button>
-        <button class="carousel-tab" onclick="showSlide('mac')" data-platform="mac">🍎 macOS</button>
-        <button class="carousel-tab" onclick="showSlide('win')" data-platform="win">🪟 Windows</button>
+      <div class="platform-tabs">
+        <button class="platform-tab active" data-platform="linux">🐧 Linux</button>
+        <button class="platform-tab" data-platform="mac">🍎 macOS</button>
       </div>
 
-      <div class="install-carousel">
-        <div class="install-slide active" id="slide-linux" data-platform="linux">
-          <div class="install-platform">🐧 Linux (x86_64)</div>
-          <div class="install-block">sudo apt install ./Keedown_linux-x86-64.deb &nbsp;# Debian, Ubuntu<br>sudo dnf install ./Keedown_linux-x86-64.rpm &nbsp;# Fedora</div>
-          <div class="install-downloads">
-            <a class="btn-primary" href="releases/latest/Keedown_linux-x86-64.deb" download>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              .deb
-            </a>
-            <a class="btn-primary" href="releases/latest/Keedown_linux-x86-64.rpm" download>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              .rpm
-            </a>
-            <a class="btn-primary" href="releases/latest/keedown_linux-x86-64" download>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Binary
-            </a>
-          </div>
+      <div class="install-slide active" id="install-linux">
+        <div class="install-platform">🐧 Linux (x86_64)</div>
+        <div class="install-block">sudo apt install ./Keedown_linux-x86-64.deb &nbsp;# Debian, Ubuntu<br>sudo dnf install ./Keedown_linux-x86-64.rpm &nbsp;# Fedora</div>
+        <div class="install-downloads">
+          <a class="btn-primary" href="releases/latest/Keedown_linux-x86-64.deb" download>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            .deb
+          </a>
+          <a class="btn-primary" href="releases/latest/Keedown_linux-x86-64.rpm" download>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            .rpm
+          </a>
+          <a class="btn-primary" href="releases/latest/keedown_linux-x86-64" download>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Binary
+          </a>
         </div>
-        <div class="install-slide" id="slide-mac" data-platform="mac">
-          <div class="install-platform">🍎 macOS</div>
-          <div class="install-block">open Keedown_x64.dmg</div>
-          <div class="install-downloads">
-            <a class="btn-primary" href="releases/latest/Keedown_x64.dmg" download>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              DMG · Intel
-            </a>
-          </div>
-        </div>
-        <div class="install-slide" id="slide-win" data-platform="win">
-          <div class="install-platform">🪟 Windows</div>
-          <div class="install-block">Double‑click Keedown_0.2.0_x64.msi or run keedown.exe</div>
-          <div class="install-downloads">
-            <a class="btn-primary" href="releases/v0.2.0/Keedown_0.2.0_x64_en-US.msi" download>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              MSI Installer
-            </a>
-            <a class="btn-primary" href="releases/v0.2.0/keedown.exe" download>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Binary (.exe)
-            </a>
-          </div>
+      </div>
+      <div class="install-slide" id="install-mac">
+        <div class="install-platform">🍎 macOS (Intel)</div>
+        <div class="install-block">open Keedown_x64.dmg</div>
+        <div class="install-downloads">
+          <a class="btn-primary" href="releases/latest/Keedown_x64.dmg" download>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            DMG · Intel
+          </a>
         </div>
       </div>
 
@@ -736,11 +651,25 @@
           <input id="promo-license-key" class="license-key" type="text" readonly value="eyJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJleHBpcmVzIjoxNzk4Mzg0NDQ5LCJlZGl0aW9uIjoicHJvIn0=.tzLviCSKUpZMvqDFigoxgX4ULZ3Qo8tHh/OmeGpWCv1d7FX6P14lwQu60R039NdxR/LTHevpPS1fpNLSOBFcDw==" />
           <button id="copy-license-key" class="license-copy" type="button">Copy License</button>
         </div>
-        <p class="license-hint">After launching Keedown, paste this key in the activation screen.</p>
+        <p class="license-hint">After launching Keedown, paste this key in the activation screen — or later under Settings → License.</p>
       </div>
     </div>
   </div>
 </section>
+
+<dialog class="lightbox" id="lightbox" aria-label="Demo, full size">
+  <div class="lb-inner">
+    <div class="lb-head">
+      <span class="lb-title"></span>
+      <span class="lb-count"></span>
+      <button class="lb-btn" data-lb="-1" aria-label="Previous demo">‹</button>
+      <button class="lb-btn" data-lb="1" aria-label="Next demo">›</button>
+      <button class="lb-btn" data-lb="close" aria-label="Close">✕</button>
+    </div>
+    <div class="lb-frame"><img alt="" /></div>
+    <div class="lb-hint">← → to switch demos · Esc to close</div>
+  </div>
+</dialog>
 
 <footer>
   <p>
@@ -750,7 +679,7 @@
     <a href="releases/latest/keedown_linux-x86-64" download>Linux Binary</a> &nbsp;·&nbsp;
     <a href="releases/latest/Keedown_x64.dmg" download>macOS DMG (Intel)</a>
   </p>
-  <p style="margin-top:.5rem">Built with Tauri 2, Svelte 5, Milkdown, and xterm.js &nbsp;·&nbsp; <a href="../">DevGear</a></p>
+  <p style="margin-top:.5rem">Built with Tauri 2, Svelte 5, Tiptap and xterm.js &nbsp;·&nbsp; <a href="../">DevGear</a></p>
 </footer>
 
 <script>
@@ -758,53 +687,156 @@
     const html = document.documentElement;
     const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
     html.setAttribute('data-theme', next);
-    localStorage.setItem('devgear-theme', next);
+    try { localStorage.setItem('devgear-theme', next); } catch (e) {}
+    restartActiveDemo();
   }
-  (function() {
-    const saved = localStorage.getItem('devgear-theme');
-    if (saved) document.documentElement.setAttribute('data-theme', saved);
-  })();
 
-  const copyBtn = document.getElementById("copy-license-key");
-  const keyInput = document.getElementById("promo-license-key");
-  if (copyBtn && keyInput) {
-    copyBtn.addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText(keyInput.value);
-        const prev = copyBtn.textContent;
-        copyBtn.textContent = "Copied";
-        setTimeout(() => { copyBtn.textContent = prev; }, 1300);
-      } catch {
-        keyInput.focus();
-        keyInput.select();
-      }
+  // ── License key copy ──
+  const copyBtn = document.getElementById('copy-license-key');
+  const keyInput = document.getElementById('promo-license-key');
+  copyBtn?.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(keyInput.value);
+      const prev = copyBtn.textContent;
+      copyBtn.textContent = 'Copied';
+      setTimeout(() => { copyBtn.textContent = prev; }, 1300);
+    } catch {
+      keyInput.focus();
+      keyInput.select();
+    }
+  });
+
+  // ── Install platform tabs ──
+  document.querySelectorAll('.platform-tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.platform-tab').forEach((t) => t.classList.toggle('active', t === tab));
+      document.querySelectorAll('.install-slide').forEach((s) => s.classList.toggle('active', s.id === 'install-' + tab.dataset.platform));
+    });
+  });
+
+  // ── Demo carousel: a scroll-snapping track; tabs, arrows and keys move it, and the
+  //    slide in view drives the tabs, counter and arrows. A slide's animation restarts
+  //    when it comes into view, so each demo plays from its beginning. ──
+  const track = document.querySelector('.demo-track');
+  const slides = [...track.querySelectorAll('.demo-slide')];
+  const tabsEl = document.querySelector('.demo-tabs');
+  const count = document.querySelector('.demo-count');
+  const [prevBtn, nextBtn] = document.querySelectorAll('.demo-nav');
+  let current = -1;
+
+  const tabs = slides.map((s, i) => {
+    const b = document.createElement('button');
+    b.className = 'demo-tab';
+    b.type = 'button';
+    b.setAttribute('role', 'tab');
+    b.id = 'tab-' + s.id;
+    b.textContent = s.dataset.title;
+    b.setAttribute('aria-controls', s.id);
+    b.addEventListener('click', () => go(i));
+    s.setAttribute('role', 'tabpanel');
+    s.setAttribute('aria-labelledby', b.id);
+    tabsEl.appendChild(b);
+    return b;
+  });
+
+  function go(i) {
+    i = Math.max(0, Math.min(slides.length - 1, i));
+    const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+    track.scrollTo({ left: i * track.clientWidth, behavior: smooth ? 'smooth' : 'auto' });
+    setCurrent(i);
+  }
+
+  function restart(slide) {
+    slide.querySelectorAll('img[src$=".webp"]').forEach((img) => {
+      if (getComputedStyle(img).display === 'none') return;
+      const src = img.getAttribute('src');
+      img.setAttribute('src', '');
+      img.setAttribute('src', src);
     });
   }
+  function restartActiveDemo() { if (current >= 0) restart(slides[current]); }
 
-  // ─── Platform config ───────────────────────────────────
-  // Set to true to enable downloads for each platform
-  const ENABLE_LINUX = true;
-  const ENABLE_MAC = true;
-  const ENABLE_WIN = false;
-
-  (function() {
-    if (!ENABLE_LINUX) {
-      document.querySelectorAll('[data-platform="linux"]').forEach(el => el.classList.add('hidden'));
-    }
-    if (!ENABLE_MAC) {
-      document.querySelectorAll('[data-platform="mac"]').forEach(el => el.classList.add('hidden'));
-    }
-    if (!ENABLE_WIN) {
-      document.querySelectorAll('[data-platform="win"]').forEach(el => el.classList.add('hidden'));
-    }
-  })();
-
-  function showSlide(platform) {
-    document.querySelectorAll('.install-slide').forEach(s => s.classList.remove('active'));
-    document.querySelectorAll('.carousel-tab').forEach(t => t.classList.remove('active'));
-    document.getElementById('slide-' + platform).classList.add('active');
-    event.currentTarget.classList.add('active');
+  function setCurrent(i) {
+    if (i === current) return;
+    current = i;
+    tabs.forEach((t, k) => { t.setAttribute('aria-selected', String(k === i)); t.tabIndex = k === i ? 0 : -1; });
+    slides.forEach((s, k) => s.setAttribute('aria-hidden', String(k !== i)));
+    count.textContent = `${i + 1} / ${slides.length}`;
+    prevBtn.disabled = i === 0;
+    nextBtn.disabled = i === slides.length - 1;
+    restart(slides[i]);
   }
+
+  let scrollTimer;
+  track.addEventListener('scroll', () => {
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(() => setCurrent(Math.round(track.scrollLeft / track.clientWidth)), 80);
+  }, { passive: true });
+
+  prevBtn.addEventListener('click', () => go(current - 1));
+  nextBtn.addEventListener('click', () => go(current + 1));
+  document.querySelector('.demo').addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight') { e.preventDefault(); go(current + 1); tabs[current].focus(); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); go(current - 1); tabs[current].focus(); }
+  });
+
+  // Feature cards open their demo
+  document.querySelectorAll('[data-demo]').forEach((a) => {
+    a.addEventListener('click', (e) => {
+      const i = slides.findIndex((s) => s.id === a.dataset.demo);
+      if (i < 0) return;
+      e.preventDefault();
+      document.getElementById('demo').scrollIntoView({ behavior: 'smooth' });
+      go(i);
+    });
+  });
+
+  // ── Lightbox: a demo at nearly full window size; ← → switch demos (the carousel
+  //    follows), Esc / ✕ / a click outside closes. ──
+  const lb = document.getElementById('lightbox');
+  const lbImg = lb.querySelector('.lb-frame img');
+  const [lbPrev, lbNext] = lb.querySelectorAll('[data-lb="-1"], [data-lb="1"]');
+  let lbIndex = 0;
+
+  function showInLightbox(i) {
+    lbIndex = Math.max(0, Math.min(slides.length - 1, i));
+    const img = [...slides[lbIndex].querySelectorAll('.demo-media img')].find((el) => getComputedStyle(el).display !== 'none');
+    lbImg.removeAttribute('src');            // restarts an animation from its first frame
+    lbImg.src = img.getAttribute('src');
+    lbImg.alt = img.alt;
+    lb.querySelector('.lb-title').textContent = slides[lbIndex].querySelector('h3').textContent;
+    lb.querySelector('.lb-count').textContent = `${lbIndex + 1} / ${slides.length}`;
+    lbPrev.disabled = lbIndex === 0;
+    lbNext.disabled = lbIndex === slides.length - 1;
+    go(lbIndex);
+  }
+  function openLightbox(i) {
+    showInLightbox(i);
+    if (!lb.open) lb.showModal();
+  }
+
+  slides.forEach((s, i) => {
+    const frame = s.querySelector('.demo-media .frame');
+    frame.tabIndex = 0;
+    frame.setAttribute('role', 'button');
+    frame.setAttribute('aria-label', `Enlarge: ${s.querySelector('h3').textContent}`);
+    frame.addEventListener('click', () => openLightbox(i));
+    frame.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); openLightbox(i); }
+    });
+  });
+  lb.addEventListener('click', (e) => {
+    const action = e.target.closest('[data-lb]')?.dataset.lb;
+    if (action === 'close' || e.target === lb) lb.close();
+    else if (action) showInLightbox(lbIndex + Number(action));
+  });
+  lb.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight') { e.preventDefault(); showInLightbox(lbIndex + 1); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); showInLightbox(lbIndex - 1); }
+  });
+  lb.addEventListener('close', () => slides[lbIndex].querySelector('.demo-media .frame').focus({ preventScroll: true }));
+
+  setCurrent(0);
 </script>
 
 </body>
