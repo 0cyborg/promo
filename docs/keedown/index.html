@@ -203,6 +203,29 @@
     .lb-frame img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: contain; }
     .lb-hint { text-align: center; font-size: .8rem; color: #f0edd8; opacity: .6; }
     @media (max-width: 600px) { .lb-hint { display: none; } }
+
+    /* ── Intro video: over the page on load; closing it leaves the page as it was ── */
+    .intro .lb-inner { width: min(94vw, calc((100vh - 7rem) * 16 / 9)); }
+    .intro .lb-frame { position: relative; }
+    .intro video, .hero-video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: #000; }
+    .intro-sound {
+      position: absolute; left: 1rem; top: 1rem; display: inline-flex; align-items: center; gap: .45rem;
+      padding: .45rem .95rem; border-radius: 999px; border: 1px solid rgba(255,255,255,.3);
+      background: rgba(0,0,0,.65); color: #fff; font: inherit; font-size: .9rem; font-weight: 600; cursor: pointer;
+      transition: background .15s, border-color .15s;
+    }
+    .intro-sound:hover { background: rgba(0,0,0,.85); border-color: #25d366; }
+    .intro-sound[hidden] { display: none; }
+    /* The hero: the same video, muted on a loop; the button replays it with sound */
+    .hero-frame { position: relative; }
+    .hero-video { cursor: pointer; }
+    .hero-play {
+      position: absolute; right: 1rem; bottom: 1rem; display: inline-flex; align-items: center; gap: .45rem;
+      padding: .45rem 1rem; border-radius: 999px; border: 1px solid var(--border);
+      background: color-mix(in srgb, var(--bg) 88%, transparent); color: var(--fg);
+      font: inherit; font-size: .88rem; font-weight: 600; cursor: pointer; transition: border-color .15s, color .15s;
+    }
+    .hero-play:hover, .hero-play:focus-visible { border-color: var(--accent); color: var(--accent); outline: none; }
     .demo-text h3 { font-size: 1.45rem; font-weight: 700; letter-spacing: -.02em; margin-bottom: .6rem; }
     .demo-text p { color: var(--muted); margin-bottom: 1rem; }
     .demo-text ul { list-style: none; display: flex; flex-direction: column; gap: .45rem; }
@@ -321,7 +344,7 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       Download for Linux &amp; macOS
     </a>
-    <a class="btn-secondary" href="#demo">▶ Watch the tour</a>
+    <a class="btn-secondary" href="#demo" data-play-intro>▶ Watch the video</a>
   </div>
   <div class="hero-stats">
     <div class="stat"><div class="stat-val">~26 MB</div><div class="stat-label">Download</div></div>
@@ -332,10 +355,14 @@
 </div>
 
 <div class="screenshot-wrap">
-  <div class="frame">
+  <div class="frame hero-frame">
     <div class="frame-bar"><div class="dot dot-red"></div><div class="dot dot-yel"></div><div class="dot dot-grn"></div></div>
-    <img class="m-dark" src="screenshots/dark/hero.png" width="2560" height="1600" alt="Keedown showing a release runbook with a runnable code block and its output, a script block and a checklist table" />
-    <img class="m-light" src="screenshots/light/hero.png" width="2560" height="1600" alt="Keedown showing a release runbook with a runnable code block and its output, a script block and a checklist table" />
+    <video class="hero-video" muted loop playsinline preload="none" poster="video/keedown-promo-poster.jpg" width="1920" height="1080"
+           aria-label="Keedown in two minutes: writing, running code blocks, the review step, the workspace, themes and print (muted)">
+      <source src="video/keedown-promo.webm" type="video/webm" />
+      <source src="video/keedown-promo-720p.mp4" type="video/mp4" />
+    </video>
+    <button class="hero-play" type="button" data-play-intro>▶ Watch with sound</button>
   </div>
 </div>
 
@@ -671,6 +698,23 @@
   </div>
 </dialog>
 
+<dialog class="lightbox intro" id="intro" aria-label="Keedown in two minutes">
+  <div class="lb-inner">
+    <div class="lb-head">
+      <span class="lb-title">Keedown in two minutes</span>
+      <button class="lb-btn" data-intro="close" aria-label="Close the video">✕</button>
+    </div>
+    <div class="lb-frame">
+      <video controls playsinline preload="none" poster="video/keedown-promo-poster.jpg" width="1920" height="1080">
+        <source src="video/keedown-promo.webm" type="video/webm" />
+        <source src="video/keedown-promo-720p.mp4" type="video/mp4" />
+      </video>
+      <button class="intro-sound" type="button" hidden>🔊 Turn sound on</button>
+    </div>
+    <div class="lb-hint">Esc or ✕ to go to the page</div>
+  </div>
+</dialog>
+
 <footer>
   <p>
     Keedown v0.7.1 &nbsp;·&nbsp;
@@ -837,6 +881,48 @@
   lb.addEventListener('close', () => slides[lbIndex].querySelector('.demo-media .frame').focus({ preventScroll: true }));
 
   setCurrent(0);
+
+  // ── Intro video: opens over the page as it loads, with sound if the browser allows it
+  //    (else muted, with a button to turn sound on). ✕ / Esc / a click outside / the end
+  //    close it, leaving the page as it was. The hero shows the same video muted on a
+  //    loop; its button (and "Watch the video") plays it here again with sound.
+  //    Not opened by itself for people who ask for reduced motion. ──
+  const intro = document.getElementById('intro');
+  const introVideo = intro.querySelector('video');
+  const soundBtn = intro.querySelector('.intro-sound');
+  const heroVideo = document.querySelector('.hero-video');
+  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  async function playIntro() {
+    heroVideo.pause();
+    if (!intro.open) intro.showModal();
+    introVideo.currentTime = 0;
+    introVideo.muted = false;
+    try { await introVideo.play(); }
+    catch (e) {
+      // The browser blocks sound until the visitor clicks: play muted instead. (Any other
+      // failure, e.g. closed before it started, leaves it alone.)
+      if (e.name !== 'NotAllowedError' || !intro.open) return;
+      introVideo.muted = true;
+      try { await introVideo.play(); } catch {}
+    }
+  }
+  const syncSound = () => { soundBtn.hidden = !introVideo.muted; };
+  introVideo.addEventListener('volumechange', syncSound);
+  introVideo.addEventListener('play', syncSound);
+  soundBtn.addEventListener('click', () => { introVideo.muted = false; introVideo.volume = 1; });
+  introVideo.addEventListener('ended', () => intro.close());
+  intro.addEventListener('click', (e) => {
+    if (e.target === intro || e.target.closest('[data-intro="close"]')) intro.close();
+  });
+  intro.addEventListener('close', () => {
+    introVideo.pause();
+    if (!reducedMotion) heroVideo.play().catch(() => {});
+  });
+  heroVideo.addEventListener('click', playIntro);
+  document.querySelectorAll('[data-play-intro]').forEach((el) => el.addEventListener('click', (e) => { e.preventDefault(); playIntro(); }));
+
+  if (!reducedMotion) playIntro();
 </script>
 
 </body>
