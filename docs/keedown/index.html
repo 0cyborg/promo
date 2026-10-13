@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- The release this page offers: the only place to change on a new release (the
+       hero badge shows its major.minor, the footer all of it). Downloads point at
+       releases/latest/, which carry no version. -->
+  <meta name="keedown-version" content="0.9.1" />
   <title>Keedown — The Editor That Thinks in Markdown</title>
   <meta name="description" content="A fast Markdown editor with runnable code blocks, a built-in terminal, SSH binding and a review step before anything runs. Linux and macOS. No Electron." />
   <script>
@@ -380,7 +384,7 @@
 </nav>
 
 <div class="hero">
-  <div class="hero-badge"><strong>v0.9</strong> &nbsp;Free with a 14-day Pro trial · runnable code blocks · review before run</div>
+  <div class="hero-badge"><strong data-version="minor"></strong> &nbsp;Free with a 14-day Pro trial · runnable code blocks · review before run</div>
   <h1>The editor that<br/><span class="accent">thinks in Markdown</span></h1>
   <p class="hero-sub">
     Write notes and runbooks that run. Keedown is a fast Markdown editor with runnable code blocks,
@@ -829,7 +833,7 @@
 
 <footer>
   <p>
-    Keedown v0.9.1 &nbsp;·&nbsp;
+    Keedown <span data-version></span> &nbsp;·&nbsp;
     <a href="releases/latest/Keedown_linux-x86-64.deb" download>Linux .deb</a> &nbsp;·&nbsp;
     <a href="releases/latest/Keedown_linux-x86-64.rpm" download>Linux .rpm</a> &nbsp;·&nbsp;
     <a href="releases/latest/keedown_linux-x86-64" download>Linux Binary</a> &nbsp;·&nbsp;
@@ -839,6 +843,14 @@
 </footer>
 
 <script>
+  // ── Version: from <meta name="keedown-version"> into every [data-version] ──
+  (() => {
+    const version = document.querySelector('meta[name="keedown-version"]').content;
+    document.querySelectorAll('[data-version]').forEach((el) => {
+      el.textContent = 'v' + (el.dataset.version === 'minor' ? version.split('.').slice(0, 2).join('.') : version);
+    });
+  })();
+
   function toggleTheme() {
     const html = document.documentElement;
     const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
