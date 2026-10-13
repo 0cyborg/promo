@@ -302,6 +302,52 @@
       .license-copy { width: 100%; }
     }
 
+    /* ── Plans ─────────────────────────────────────────── */
+    .plans { position: relative; }
+    .plan-track {
+      display: flex; gap: 1.25rem; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth;
+      scrollbar-width: none; overscroll-behavior-x: contain; padding: .25rem .1rem 1rem;
+    }
+    .plan-track::-webkit-scrollbar { display: none; }
+    .plan {
+      flex: 0 0 calc((100% - 2.5rem) / 3); scroll-snap-align: start; display: flex; flex-direction: column;
+      padding: 1.75rem 1.5rem 1.5rem; border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg2);
+    }
+    .plan.featured { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: color-mix(in srgb, var(--accent) 5%, var(--bg2)); }
+    .plan-head { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: .6rem; }
+    .plan h3 { font-size: 1.35rem; font-weight: 700; }
+    .plan-tag { font-size: .72rem; font-weight: 600; padding: .25rem .6rem; border-radius: 999px; color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); white-space: nowrap; }
+    .plan-tag.soon { color: var(--muted); background: var(--bg3); border: 1px solid var(--border); }
+    .plan-for { color: var(--muted); font-size: .92rem; margin-bottom: 1.1rem; }
+    .plan ul { list-style: none; display: flex; flex-direction: column; gap: .55rem; margin-bottom: 1.5rem; flex: 1; }
+    .plan li { position: relative; padding-left: 1.5rem; font-size: .9rem; line-height: 1.45; }
+    .plan li::before { content: "✓"; position: absolute; left: 0; top: 0; color: var(--accent); font-weight: 700; }
+    .plan.soon li::before { color: var(--muted); }
+    .plan-cta { justify-content: center; width: 100%; }
+    .plan-cta-soon { display: block; text-align: center; padding: .7rem 1rem; border-radius: 8px; border: 1px dashed var(--border); color: var(--muted); font-size: .9rem; font-weight: 600; }
+    .plan-controls { display: flex; align-items: center; justify-content: center; gap: 1rem; }
+    .plan-controls[hidden] { display: none; }
+    .plan-dots { display: flex; gap: .45rem; }
+    .plan-dot { width: 8px; height: 8px; padding: 0; border-radius: 50%; border: none; background: var(--border); cursor: pointer; transition: width .15s, background .15s; }
+    .plan-dot[aria-current="true"] { width: 22px; border-radius: 4px; background: var(--accent); }
+    .enterprise {
+      margin-top: 2rem; display: flex; align-items: center; justify-content: space-between; gap: 1.5rem;
+      padding: 1.75rem 2rem; border-radius: var(--radius); border: 1px dashed var(--border); background: var(--bg3);
+    }
+    .enterprise-label { font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: .35rem; }
+    .enterprise h3 { font-size: 1.15rem; font-weight: 600; margin-bottom: .35rem; }
+    .enterprise p:not(.enterprise-label) { color: var(--muted); font-size: .92rem; max-width: 560px; }
+    .enterprise .btn-secondary { white-space: nowrap; flex-shrink: 0; }
+    @media (max-width: 900px) {
+      .plan { flex-basis: 82%; }
+    }
+    @media (max-width: 680px) {
+      .enterprise { flex-direction: column; align-items: flex-start; padding: 1.5rem; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .plan-track { scroll-behavior: auto; }
+    }
+
     /* ── Footer ────────────────────────────────────────── */
     footer { text-align: center; padding: 2.5rem 1.5rem; border-top: 1px solid var(--border); font-size: .85rem; color: var(--muted); }
     footer a { color: var(--muted); }
@@ -323,6 +369,7 @@
   <div class="nav-links">
     <a href="#demo">Demo</a>
     <a href="#features">Features</a>
+    <a href="#plans">Plans</a>
     <a href="#install">Install</a>
     <button class="theme-toggle" onclick="toggleTheme()" title="Toggle light / dark" aria-label="Toggle light or dark theme">🌓</button>
     <a class="nav-cta" href="#install">
@@ -333,7 +380,7 @@
 </nav>
 
 <div class="hero">
-  <div class="hero-badge"><strong>v0.8</strong> &nbsp;Runnable code blocks · review before run · print to PDF</div>
+  <div class="hero-badge"><strong>v0.9</strong> &nbsp;Free with a 14-day Pro trial · runnable code blocks · review before run</div>
   <h1>The editor that<br/><span class="accent">thinks in Markdown</span></h1>
   <p class="hero-sub">
     Write notes and runbooks that run. Keedown is a fast Markdown editor with runnable code blocks,
@@ -632,6 +679,71 @@
 
 <hr class="divider" />
 
+<section id="plans">
+  <div class="section-inner">
+    <p class="section-label">Plans</p>
+    <h2>Start free. Go Pro when you need it.</h2>
+    <p class="section-sub">Every install starts on Free with a 14-day Pro trial bundled. When a trial or license ends, Keedown keeps running as Free, and nothing you made is deleted.</p>
+
+    <div class="plans" aria-roledescription="carousel" aria-label="Plans">
+      <div class="plan-track" tabindex="0">
+        <article class="plan" id="plan-free" aria-roledescription="slide" aria-label="Free">
+          <div class="plan-head"><h3>Free</h3><span class="plan-tag">14-day Pro trial bundled</span></div>
+          <p class="plan-for">The editor, your workspaces and runnable code blocks on your own computer.</p>
+          <ul>
+            <li>Rich Markdown editor with slash commands, worklogs and version history</li>
+            <li>Workspaces, linked folders and find across tabs</li>
+            <li>Runnable code blocks on this computer, behind the review step</li>
+            <li>Print and Save as PDF with headers, footers and page numbers</li>
+            <li>CSV editor, PDF and image viewers</li>
+          </ul>
+          <a class="btn-secondary plan-cta" href="#install">Download free</a>
+        </article>
+
+        <article class="plan featured" id="plan-pro" aria-roledescription="slide" aria-label="Pro">
+          <div class="plan-head"><h3>Pro</h3><span class="plan-tag">60-day trial key below</span></div>
+          <p class="plan-for">Everything in Free, plus terminals, SSH, signing and automation.</p>
+          <ul>
+            <li>Built-in terminal and shell tabs</li>
+            <li>Run documents on terminals and SSH profiles: key, certificate, GCloud IAP, AWS SSM</li>
+            <li>Trust &amp; Signing: sign documents and PDFs with your own certificate</li>
+            <li>Saved-PDF options (password, restrictions, signature, watermark, bookmarks) and signature checks on PDFs you open</li>
+            <li>ETAPI: a local API, with skill files for AI agents</li>
+            <li>Extensions: PDF Sign, Snippets and Draw.io diagrams</li>
+          </ul>
+          <a class="btn-primary plan-cta" href="#license">Get the Pro trial key</a>
+        </article>
+
+        <article class="plan soon" id="plan-team" aria-roledescription="slide" aria-label="Team">
+          <div class="plan-head"><h3>Team</h3><span class="plan-tag soon">Coming soon</span></div>
+          <p class="plan-for">Everything in Pro, for teams that share their runbooks.</p>
+          <ul>
+            <li>Licenses and features managed from a server inside your network</li>
+            <li>One place to set up Keedown for the whole team</li>
+          </ul>
+          <span class="plan-cta-soon">Coming soon</span>
+        </article>
+      </div>
+      <div class="plan-controls" hidden>
+        <button class="demo-nav plan-nav" data-dir="-1" aria-label="Previous plan">‹</button>
+        <div class="plan-dots"></div>
+        <button class="demo-nav plan-nav" data-dir="1" aria-label="Next plan">›</button>
+      </div>
+    </div>
+
+    <div class="enterprise">
+      <div>
+        <p class="enterprise-label">Enterprise · coming soon</p>
+        <h3>Rolling Keedown out across your organization?</h3>
+        <p>Everything in Team, with deployment, licensing and support shaped around your organization. Talk to the developer about what you need.</p>
+      </div>
+      <a class="btn-secondary" href="https://github.com/0cyborg" target="_blank" rel="noopener">Contact the developer</a>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
 <section id="install">
   <div class="section-inner">
     <div class="cta-box">
@@ -672,13 +784,13 @@
         </div>
       </div>
 
-      <div class="license-box">
-        <div class="license-label">Pro License Key</div>
+      <div class="license-box" id="license">
+        <div class="license-label">Pro trial key · 60 days</div>
         <div class="license-row">
-          <input id="promo-license-key" class="license-key" type="text" readonly value="eyJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJleHBpcmVzIjoxNzk4Mzg0NDQ5LCJlZGl0aW9uIjoicHJvIn0=.tzLviCSKUpZMvqDFigoxgX4ULZ3Qo8tHh/OmeGpWCv1d7FX6P14lwQu60R039NdxR/LTHevpPS1fpNLSOBFcDw==" />
+          <input id="promo-license-key" class="license-key" type="text" readonly value="eyJlbWFpbCI6InRyaWFsQGV4YW1wbGUuY29tIiwiZXhwaXJlcyI6MTc5NzA4OTI0MCwiZWRpdGlvbiI6InBybyIsInYiOjIsInByb2R1Y3QiOiJrZWVkb3duIiwidHJpYWwiOnRydWUsImlzc3VlZCI6MTc5MTkwNTI0MH0=.gfAKEnANKglZcSS9asQqBPVjGirBWt0ToFt0FjSQ2CBhXZceeTU/kOVodrnNHJzrcjc4zjNGDt3KQ/K7TvLXAw==" />
           <button id="copy-license-key" class="license-copy" type="button">Copy License</button>
         </div>
-        <p class="license-hint">After launching Keedown, paste this key in the activation screen — or later under Settings → License.</p>
+        <p class="license-hint">Every install already includes a 14-day Pro trial. For 60 days of Pro, paste this key in Settings → License.</p>
       </div>
     </div>
   </div>
@@ -717,7 +829,7 @@
 
 <footer>
   <p>
-    Keedown v0.8.9 &nbsp;·&nbsp;
+    Keedown v0.9.1 &nbsp;·&nbsp;
     <a href="releases/latest/Keedown_linux-x86-64.deb" download>Linux .deb</a> &nbsp;·&nbsp;
     <a href="releases/latest/Keedown_linux-x86-64.rpm" download>Linux .rpm</a> &nbsp;·&nbsp;
     <a href="releases/latest/keedown_linux-x86-64" download>Linux Binary</a> &nbsp;·&nbsp;
@@ -758,6 +870,40 @@
     });
   });
 
+  // ── Plans carousel: all plans side by side when they fit; on narrow screens a
+  //    scroll-snapping track, with arrows and a dot per plan that follow the scroll. ──
+  (() => {
+    const track = document.querySelector('.plan-track');
+    const plans = [...track.querySelectorAll('.plan')];
+    const controls = document.querySelector('.plan-controls');
+    const dotsEl = controls.querySelector('.plan-dots');
+    const [prev, next] = controls.querySelectorAll('.plan-nav');
+    const step = () => plans[1].offsetLeft - plans[0].offsetLeft;
+    const dots = plans.map((p, i) => {
+      const d = document.createElement('button');
+      d.type = 'button';
+      d.className = 'plan-dot';
+      d.setAttribute('aria-label', p.getAttribute('aria-label'));
+      d.addEventListener('click', () => track.scrollTo({ left: i * step() }));
+      dotsEl.appendChild(d);
+      return d;
+    });
+    function update() {
+      controls.hidden = track.scrollWidth <= track.clientWidth + 1;
+      const i = Math.round(track.scrollLeft / step());
+      dots.forEach((d, j) => d.setAttribute('aria-current', String(j === i)));
+      prev.disabled = track.scrollLeft <= 1;
+      next.disabled = track.scrollLeft + track.clientWidth >= track.scrollWidth - 1;
+    }
+    controls.addEventListener('click', (e) => {
+      const dir = e.target.closest('.plan-nav')?.dataset.dir;
+      if (dir) track.scrollBy({ left: Number(dir) * step() });
+    });
+    track.addEventListener('scroll', () => requestAnimationFrame(update), { passive: true });
+    addEventListener('resize', update);
+    update();
+  })();
+
   // ── Demo carousel: a scroll-snapping track; tabs, arrows and keys move it, and the
   //    slide in view drives the tabs, counter and arrows. A slide's animation restarts
   //    when it comes into view, so each demo plays from its beginning. ──
@@ -765,7 +911,7 @@
   const slides = [...track.querySelectorAll('.demo-slide')];
   const tabsEl = document.querySelector('.demo-tabs');
   const count = document.querySelector('.demo-count');
-  const [prevBtn, nextBtn] = document.querySelectorAll('.demo-nav');
+  const [prevBtn, nextBtn] = document.querySelectorAll('.demo-controls .demo-nav');
   let current = -1;
 
   const tabs = slides.map((s, i) => {
